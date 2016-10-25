@@ -189,6 +189,7 @@ var twoStepWalker = Walker(model: model, walkOptions: .steps(2))
 ### Generating sequences
 
 Sequences are generated with a random walk looking at the last _n_ steps as specified by the walk options.
+
 `Walker` is a type of `Sequence` meaning that you can iterate over it like you would any collection:
 
 ```Swift
@@ -199,7 +200,7 @@ var walker = Walker(model: model)
 let item = walker.next()
 // returns an optional:
 // - for models of continuous sequences this should always return an item
-// - for models of discrete sequences, nil represents the end of a sequence
+// - for models of discrete sequences `nil` represents the end of a sequence
 
 // End the current random walk so that the next call to `next()` returns the first item in a new walk.
 walker.endWalk()
@@ -212,7 +213,7 @@ for item in walker {
 // generate an array of up to 10 items
 let tenItems = walker.fill(request: 10)
 // - for models of continuous sequences the array may be less than the requested length
-// - for models of discrete sequences, the array will be the requested length
+// - for models of discrete sequences the array will be the requested length
 
 ```
 
@@ -243,11 +244,11 @@ let tenItems = walker.fill(request: 10)
 
 ## Author
 
-Made with :heart: in NYC by @permakittens
+Made with :heart: by [@permakittens](http://twitter.com/permakittens)
 
 ## Contributing
 
-Contributions for bug fixing or improvements are welcome. Feel free to submit a pull request.
+Feedback, or contributions for bug fixing or improvements are welcome. Feel free to submit a pull request or open an issue.
 
 ## License
 
