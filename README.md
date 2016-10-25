@@ -2,7 +2,7 @@
 
 Tally & Walker is a lightweight Swift library for building probability models of n-grams.
 
-## Quick example 
+## Quick example
 
 Build a frequency model of n-grams by observing example sequences:
 
@@ -11,27 +11,27 @@ Build a frequency model of n-grams by observing example sequences:
 // Create a model out of any type that adopts the `Hashable` protocol
 var weatherModel = Tally<Character>()
 
-// Observe sequences of items to build the probability model 
+// Observe sequences of items to build the probability model
 weatherModel.observe(sequence: ["🌧","🌧","🌧","🌧", "☀️","☀️","☀️","☀️"])
 
 // Check the overall distributions of items observed
 weatherModel.distributions()
-// Returns: 
-// [(item: "🌧", probability: 0.5), 
+// Returns:
+// [(item: "🌧", probability: 0.5),
 //  (item: "☀️", probability: 0.5)]
 
 // Check to see what items are expected to follow a specific item  
 weatherModel.items(following: "☀️")
 // Returns:
-// [(item: "☀️", probability: 0.75), 
+// [(item: "☀️", probability: 0.75),
 //  (item: "🌧", probability: 0.25)]
 
 weatherModel.items(following: "🌧")
-// Returns: 
-// [(item: "🌧", probability: 0.75), 
+// Returns:
+// [(item: "🌧", probability: 0.75),
 //  (item: .observableBoundary, probability: 0.25)]
 //
-// `.observableBoundary` implies that we expect the sequence continues, but based on the 
+// `.observableBoundary` implies that we expect the sequence continues, but based on the
 // sequences we've observed we've reached a boundary and don't know what item follows
 
 ````
@@ -45,27 +45,27 @@ var walker = Walker(model: weatherModel)
 
 // Create four weeks of 7 day forecasts
 for _ in 0..<4 {
-let forecast = walker.fill(max: 7)
-print(forecast)
+  let forecast = walker.fill(request: 7)
+  print(forecast)
 }
 
-// Prints: 
+// Prints:
 // ["☀️", "☀️", "🌧", "🌧", "🌧", "🌧", "🌧"]
 // ["☀️", "☀️", "🌧", "☀️", "☀️", "🌧", "☀️"]
 // ["🌧", "🌧", "☀️", "☀️", "☀️", "☀️", "☀️"]
 // ["☀️", "☀️", "☀️", "☀️", "☀️", "☀️", "☀️"]
-// 
-// Although the overal distribution of rainy days and sunny days are equal
+//
+// Although the overall distribution of rainy days and sunny days are equal
 // we don't want to generate a sequence based off a coin flip. Instead we
 // except that the weather tomorrow is more likely the same as the weather
 // today, and that we will find clusters of rainy and sunny days but that
-// over time the number of rainy days and sunny days will apprach each other.
+// over time the number of rainy days and sunny days will approach each other.
 
 ````
 
-## Using Tally 
+## Using Tally
 
-### Creating Model 
+### Creating Model
 
 By default, `Tally` creates a model to represent continuous sequences, using a bi-gram.
 
@@ -90,26 +90,25 @@ let tweets: [String] = ["... tweet text here..."]
 
 for tweet in tweets {
 
-// start a sequence 
-model.startSequence()
+  // start a sequence
+  model.startSequence()
 
-// enumerate items and observe them one at a time
-tweet.enumerateSubstrings(in: tweet.startIndex..<tweet.endIndex, options: .byWords, { word, _, _, _ in
-if let word = word {
-model.observe(next: word)
-}
-})
+  // enumerate items and observe them one at a time
+  tweet.enumerateSubstrings(in: tweet.startIndex..<tweet.endIndex, options: .byWords, { word, _, _, _ in
+    if let word = word {
+      model.observe(next: word)
+    }
+  })
 
-// end the sequence 
-model.endSequence()
+  // end the sequence
+  model.endSequence()
 }
 
 ```
 
 ### Getting probabilities
 
-Along with returning the probability of items that follow a single item, it's alow possible to look for items that follow a sequence of items.
-However the length of the sequence that can be searched is limited by the size of the n-gram that the model uses.
+Along with returning the probability of items that follow a single item, it's also possible to look for items that follow a sequence of items, however the length of the sequence that can be searched is limited by the size of the n-gram that the model uses.
 
 ```Swift
 
@@ -141,17 +140,17 @@ If you want to use Tally with your custom objects, just make sure that complies 
 
 struct Cat: Hashable {
 
-let name: String
+  let name: String
 
-// Hashable requires a `hashValue` property
-var hashValue: Int {
-return name.hashValue
-}
+  // Hashable requires a `hashValue` property
+  var hashValue: Int {
+    return name.hashValue
+  }
 
-// Hashable requires Equatable, which requires a == function to be defined
-static func == (lhs: Cat, rhs: Cat) -> Bool {
-return lhs.name == rhs.name
-}
+  // Hashable requires Equatable, which requires a == function to be defined
+  static func == (lhs: Cat, rhs: Cat) -> Bool {
+    return lhs.name == rhs.name
+  }
 }
 
 // now we can create an n-gram out of `Cat` objects
@@ -159,9 +158,9 @@ var catsgram = Tally<Cat>()
 
 ````
 
-## Using Walker 
+## Using Walker
 
-### Creating the walker 
+### Creating the walker
 
 Along with the probability model to use for random walks, you can also specify how many items to use to determine the next step.  
 
@@ -170,11 +169,11 @@ Along with the probability model to use for random walks, you can also specify h
 // Markov chain represents a walk where only the last step is considered
 var markovWalker = Walker(model: model, walkOptions: .markovChain)
 
-// Match model is the default option which will automaticaly use the largest 
+// Match model is the default option which will automatically use the largest
 // number of steps based on the size of n-gram that the model uses
 var walker = Walker(model: model, walkOptions: .matchModel)
 
-// Alternativley, you can request a specific number of steps 
+// Alternativley, you can request a specific number of steps
 var twoStepWalker = Walker(model: model, walkOptions: .steps(2))
 
 ```
@@ -194,10 +193,10 @@ var twoStepWalker = Walker(model: model, walkOptions: .steps(2))
 - [ ] Normalize items as they are observed while keeping original value and count
 - [ ] Tag observed sequences with metadata/category to provide context
 - [ ] Approximate matching to compare item sequences
-- [ ] Include common sample training data 
+- [ ] Include common sample training data
 - [x] Generate new sequence from random walk
 - [ ] Generate sequences from biased walk
-- [ ] Semi-random walk that biases towards a taret length of a discrete sequence
+- [ ] Semi-random walk that biases towards a target length of a discrete sequence
 
 ## Requirements
 
