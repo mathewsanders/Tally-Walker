@@ -17,8 +17,8 @@ weatherModel.observe(sequence: ["🌧","🌧","🌧","🌧", "☀️","☀️","
 weatherModel.distributions()
 
 // Check to see what items are expected to follow a specific item
-weatherModel.items(following: "☀️")
-weatherModel.items(following: "🌧")
+weatherModel.itemProbabilities(after: "🌧")
+weatherModel.itemProbabilities(after: "☀️")
 
 // Create a walker from a frequency model
 var walker = Walker(model: weatherModel)

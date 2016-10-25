@@ -17,22 +17,22 @@ weatherModel.observe(sequence: ["🌧","🌧","🌧","🌧", "☀️","☀️","
 // Check the overall distributions of items observed
 weatherModel.distributions()
 // Returns:
-// [(item: "🌧", probability: 0.5),
-//  (item: "☀️", probability: 0.5)]
+// [(probability: 0.5, item: "🌧"),
+//  (probability: 0.5, item: "☀️")]
 
 // Check to see what items are expected to follow a specific item  
-weatherModel.items(following: "☀️")
+weatherModel.itemProbabilities(after: "☀️")
 // Returns:
-// [(item: "☀️", probability: 0.75),
-//  (item: "🌧", probability: 0.25)]
+// [(probability: 0.75, item: "☀️"),
+//  (probability: 0.25, item: "🌧")]
 
-weatherModel.items(following: "🌧")
+weatherModel.itemProbabilities(after: "🌧")
 // Returns:
-// [(item: "🌧", probability: 0.75),
-//  (item: .observableBoundary, probability: 0.25)]
+// [(probability: 0.75, item: "🌧"),
+//  (probability: 0.25, item: .unseenItems)]
 //
-// `.observableBoundary` implies that we expect the sequence continues, but based on the
-// sequences we've observed we've reached a boundary and don't know what item follows
+// `.unseenItems` is a marker to say that the sequence continues but, based
+// on the sequences we have observed, we don't know what items come next
 
 ````
 
@@ -118,17 +118,16 @@ var genes = Tally<Character>(ngram: .trigram)
 /* train the model */
 
 // find probabilities of items that follow the item 'C'
-genes.items(following: "C")
+genes.itemProbabilities(after: "C")
 
 // Find probabilities of items that follow the sequence 'C-T'  
-genes.items(following: ["C", "T"])
+genes.itemProbabilities(after: ["C", "T"])
 
-// Because this model uses a 3-gram, it's not possible to find items
-// that follow a sequence longer than two items, instead of returning
-// no matches, the model will clamp the sequence to the maximum size
-// that the model allows, in this case returning items that follow
-// the sequence 'G-A'
-genes.items(following: ["C", "T", "G", "A"])
+// Because this model uses a 3-gram, it's not possible to find probabilities of
+// items that follow a sequence longer than two items, instead of returning no
+// matches, the model will clamp the sequence to the maximum size that the
+// model allows, in this case returning items that follow the sequence 'G-A'
+genes.itemProbabilities(after: ["C", "T", "G", "A"])
 
 ```
 ### Using Tally with custom objects

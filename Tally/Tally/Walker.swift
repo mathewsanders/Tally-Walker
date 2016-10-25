@@ -47,10 +47,10 @@ public enum WalkType<Item: Hashable> {
 /// A Walker object generates sequences of items based of n-grams of items from a Tally object.
 public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
     
-    private let frequencyModel: Tally<Item>
+    private let model: Tally<Item>
     private let walk: WalkType<Item>
     
-    internal typealias ItemProbability = (item: Node<Item>, probability: Double)
+    internal typealias ItemProbability = (probability: Double, item: Node<Item>)
     
     internal var newSequence = true
     internal var lastSteps: [Item] = []
@@ -62,7 +62,7 @@ public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
     ///
     /// - returns: An initialized walker object ready to start generating new sequences.
     public init(model: Tally<Item>, walkOptions walk: WalkType<Item> = .matchModel) {
-        self.frequencyModel = model
+        self.model = model
         self.walk = walk
         
         // seed random number generator
@@ -78,7 +78,7 @@ public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
     ///
     /// - returns: An array of items generated from a random walk on the `Tally` frequency model.
     public mutating func fill(request: Int) -> [Item] {
-        if frequencyModel.sequence.isDiscrete { endWalk() }
+        if model.sequence.isDiscrete { endWalk() }
         return Array(self.prefix(request))
     }
     
@@ -112,7 +112,7 @@ public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
     mutating public func nextStep() -> Item? {
         
         // empty model
-        if frequencyModel.startingItems().isEmpty {
+        if model.startingItems().isEmpty {
             print("Walker.next() Warning: attempting to generate an item from empty model")
             return nil
         }
@@ -122,7 +122,7 @@ public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
             
             newSequence = false
             lastSteps.removeAll()
-            let step = randomWalk(from: frequencyModel.startingItems())
+            let step = randomWalk(from: model.startingItems())
             if let item = step.item {
                 lastSteps = [item]
             }
@@ -132,11 +132,11 @@ public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
             // continuing an existing sequence
         else {
             
-            lastSteps.clamp(to: walk.numberOfSteps(for: frequencyModel))
+            lastSteps.clamp(to: walk.numberOfSteps(for: model))
             
             // continuing a discrete sequence (okay to return nil)
-            if frequencyModel.sequence.isDiscrete {
-                let nextSteps = frequencyModel.items(following: lastSteps)
+            if model.sequence.isDiscrete {
+                let nextSteps = model.itemProbabilities(after: lastSteps)
                 let step = randomWalk(from: nextSteps)
                 if let item = step.item {
                     lastSteps.append(item)
@@ -145,7 +145,7 @@ public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
             }
                 
                 // continuing a continuous sequence (always want to return next item)
-            else if frequencyModel.sequence.isContinuous {
+            else if model.sequence.isContinuous {
                 
                 var foundStep = false
                 var item: Item? = nil
@@ -153,12 +153,12 @@ public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
                 while !foundStep {
                     
                     if lastSteps.isEmpty {
-                        let step = randomWalk(from: frequencyModel.startingItems())
+                        let step = randomWalk(from: model.startingItems())
                         item = step.item
                         foundStep = true
                     }
                     else {
-                        let nextSteps = frequencyModel.items(following: lastSteps)
+                        let nextSteps = model.itemProbabilities(after: lastSteps)
                         let step = randomWalk(from: nextSteps)
                         
                         if let _ = step.item {
@@ -167,9 +167,9 @@ public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
                         }
                         else if step.isObservableBoundary {
                             
-                            var nextSteps = frequencyModel.distributions(excluding: nextSteps.map({ $0.item }))
+                            var nextSteps = model.distributions(excluding: nextSteps.map({ $0.item }))
                             if nextSteps.isEmpty {
-                                nextSteps = frequencyModel.distributions()
+                                nextSteps = model.distributions()
                             }
                             let step = randomWalk(from: nextSteps)
                             if let _ = step.item {

@@ -43,15 +43,15 @@ public enum SequenceType<Item: Hashable> {
     
     fileprivate var nodeForStart: Node<Item> {
         switch self {
-        case .continuousSequence: return Node.observableBoundary
-        case .discreteSequence: return Node.startBoundary
+        case .continuousSequence: return Node.unseenItems
+        case .discreteSequence: return Node.sequenceStart
         }
     }
     
     fileprivate var nodeForEnd: Node<Item> {
         switch self {
-        case .continuousSequence: return Node.observableBoundary
-        case .discreteSequence: return Node.endBoundary
+        case .continuousSequence: return Node.unseenItems
+        case .discreteSequence: return Node.sequenceEnd
         }
     }
 }
@@ -94,9 +94,9 @@ public struct Tally<Item: Hashable> {
     
     /// An ItemProbability is a tuple combining an item, and it's probability.
     ///
-    /// - item is a `Node` which may represent a literal item, or a sequence boundary.
     /// - probability is a `Double` between 0.0 and 1.0
-    public typealias ItemProbability = (item: Node<Item>, probability: Double)
+    /// - item is a `Node` which may represent a literal item, or a sequence boundary
+    public typealias ItemProbability = (probability: Double, item: Node<Item>)
     
     /// The type of n-gram to use when building the frequency model.
     public let ngram: NgramType
@@ -212,7 +212,7 @@ public struct Tally<Item: Hashable> {
     public func startingItems() -> [ItemProbability] {
         switch sequence {
         case .continuousSequence: return distributions()
-        case .discreteSequence: return self.items(following: Node.startBoundary)
+        case .discreteSequence: return itemProbabilities(after: Node.sequenceStart)
         }
     }
     
@@ -221,8 +221,8 @@ public struct Tally<Item: Hashable> {
     /// - parameter item: The item used to check the frequency model.
     ///
     /// - returns: An array of item probabilities. If the model has no record of this item an empty array is returned.
-    public func items(following item: Item) -> [ItemProbability] {
-        return self.items(following: [item])
+    public func itemProbabilities(after item: Item) -> [ItemProbability] {
+        return self.itemProbabilities(after: [item])
     }
     
     /// Get the probabilities of items that have observed to follow a sequence of items.
@@ -232,21 +232,21 @@ public struct Tally<Item: Hashable> {
     /// *Note:* If this array is larger, or the same size as the size of n-gram used to build this model, then this array will automatically be truncated to the largest size that the model can use.
     ///
     /// returns: An array of item probabilities. If the model has no record of this item an empty array is returned.
-    public func items(following sequence: [Item]) -> [ItemProbability] {
+    public func itemProbabilities(after sequence: [Item]) -> [ItemProbability] {
         let items = sequence.map({ item in return Node.item(item) })
-        return self.items(following: items)
+        return self.itemProbabilities(after: items)
     }
     
-    public func items(following node: Node<Item>) -> [ItemProbability] {
-        return self.items(following: [node])
+    public func itemProbabilities(after node: Node<Item>) -> [ItemProbability] {
+        return self.itemProbabilities(after: [node])
     }
     
-    public func items(following nodes: [Node<Item>]) -> [ItemProbability] {
+    public func itemProbabilities(after nodes: [Node<Item>]) -> [ItemProbability] {
         if ngram.size <= nodes.count {
             print("Tally.items(following:) Warning: attempting to match sequence of \(nodes.count) items, which exceeds the n-gram size of \(ngram.size). The sequence of items has been automatically clamped to \(ngram.size-1)")
         }
         let tail = nodes.clamped(by: ngram.size-1)
-        return root.itemProbabilities(following: [root.node]+tail)
+        return root.itemProbabilities(after: [root.node]+tail)
     }
 }
 
@@ -260,14 +260,14 @@ public enum Node<Item: Hashable>: Hashable {
     /// A literal item in the sequence.
     case item(Item)
     
-    /// Represents the either the start or end boundary of an observed sample of a continuous sequence.
-    case observableBoundary
+    /// Represents the boundary of items observed from a segment of a continuous sequence.
+    case unseenItems
     
     /// Represents the start of a discrete sequence.
-    case startBoundary
+    case sequenceStart
     
     /// Represents the end of a discrete sequence.
-    case endBoundary
+    case sequenceEnd
     
     /// The root node
     case root
@@ -283,23 +283,23 @@ public enum Node<Item: Hashable>: Hashable {
     internal var isBoundaryOrRoot: Bool {
         switch self {
         case .item: return false
-        case .observableBoundary, .endBoundary, .startBoundary, .root: return true
+        case .unseenItems, .sequenceEnd, .sequenceStart, .root: return true
         }
     }
     
     internal var isObservableBoundary: Bool {
         switch self {
-        case .item, .endBoundary, .startBoundary, .root: return false
-        case .observableBoundary: return true
+        case .item, .sequenceEnd, .sequenceStart, .root: return false
+        case .unseenItems: return true
         }
     }
     
     public var hashValue: Int {
         switch self {
         case .root: return 0
-        case .startBoundary: return 1
-        case .endBoundary: return 2
-        case .observableBoundary: return 3
+        case .sequenceStart: return 1
+        case .sequenceEnd: return 2
+        case .unseenItems: return 3
         case .item(let item): return item.hashValue
         }
     }
@@ -315,9 +315,9 @@ public enum Node<Item: Hashable>: Hashable {
     public static func ==(lhs: Node<Item>, rhs: Node<Item>) -> Bool {
         switch (lhs, rhs) {
         case (.root, .root): return true
-        case (.startBoundary, .startBoundary): return true
-        case (.endBoundary, .endBoundary): return true
-        case(.observableBoundary, .observableBoundary): return true
+        case (.sequenceStart, .sequenceStart): return true
+        case (.sequenceEnd, .sequenceEnd): return true
+        case(.unseenItems, .unseenItems): return true
         case let(.item(leftItem), item(rightItem)): return leftItem == rightItem
         default: return false
         }
@@ -330,7 +330,7 @@ internal struct NodeEdges<Item: Hashable> {
     
     internal typealias Nodes = [Node<Item>]
     internal typealias Children = [Node<Item>: NodeEdges<Item>]
-    internal typealias ItemProbability = (item: Node<Item>, probability: Double)
+    internal typealias ItemProbability = (probability: Double, item: Node<Item>)
     
     internal let node: Node<Item>
     internal var count: Int = 0
@@ -354,13 +354,13 @@ internal struct NodeEdges<Item: Hashable> {
         }
     }
     
-    func itemProbabilities(following sequence: Nodes) -> [ItemProbability] {
+    func itemProbabilities(after sequence: Nodes) -> [ItemProbability] {
         
         let (_, tail) = headAndTail(from: sequence)
         
         if let item = tail.first {
             if let child = children[item] {
-                return child.itemProbabilities(following: tail)
+                return child.itemProbabilities(after: tail)
             }
         }
         else { // tail is empty
@@ -370,7 +370,7 @@ internal struct NodeEdges<Item: Hashable> {
             
             return children.values.map({ child in
                 let prob = Double(child.count) / Double(total)
-                return (item: child.node, probability: prob)
+                return (probability: prob, item: child.node)
             })
         }
         return []
