@@ -67,7 +67,9 @@ for _ in 0..<4 {
 
 ### Creating Model
 
-By default, `Tally` creates a model to represent continuous sequences, using a bi-gram.
+By default, `Tally` creates a model to represent continuous sequences, using a bi-gram (which is an n-gram with two items).
+
+Both of these default options can be changed when creating a new model:
 
 ```Swift
 
@@ -79,6 +81,12 @@ var model = Tally<String>(representing: .continuousSequence, ngram: ngram(4))
 
 ```
 
+Choose `.continuousSequence` when your sequences have no arbitrary beginning or end, or when the beginning and end of an observed sequence doesn't mean anything.
+
+Choose `.discreteSequence` when you want the items that start and end a sequence to have significance.
+
+Take caution with using larger n-grams! Larger n-grams will impact memory and performance. If you can't get your expected outcome using a bigram or trigram it's possible that another approach might be better suited for your purposes.
+
 ### Training the model  
 
 If all items in a sequence can't be observed in a single pass, items can be observed individually if you wrap the observations in calls to `startSequence()` and `endSequence()`
@@ -86,7 +94,7 @@ If all items in a sequence can't be observed in a single pass, items can be obse
 ```Swift
 
 // load text to model
-let tweets: [String] = ["... tweet text here..."]
+let tweets: [String] = ["...tweet text here..."]
 
 for tweet in tweets {
 
@@ -130,6 +138,7 @@ genes.itemProbabilities(after: ["C", "T"])
 genes.itemProbabilities(after: ["C", "T", "G", "A"])
 
 ```
+
 ### Using Tally with custom objects
 
 Tally is a generic class that is ready to work on any type that is `Hashable`.
@@ -172,8 +181,38 @@ var markovWalker = Walker(model: model, walkOptions: .markovChain)
 // number of steps based on the size of n-gram that the model uses
 var walker = Walker(model: model, walkOptions: .matchModel)
 
-// Alternativley, you can request a specific number of steps
+// Alternatively, you can request a specific number of steps
 var twoStepWalker = Walker(model: model, walkOptions: .steps(2))
+
+```
+
+### Generating sequences
+
+Sequences are generated with a random walk looking at the last _n_ steps as specified by the walk options.
+`Walker` is a type of `Sequence` meaning that you can iterate over it like you would any collection:
+
+```Swift
+
+var walker = Walker(model: model)
+
+// get the next item by a random walk
+let item = walker.next()
+// returns an optional:
+// - for models of continuous sequences this should always return an item
+// - for models of discrete sequences, nil represents the end of a sequence
+
+// End the current random walk so that the next call to `next()` returns the first item in a new walk.
+walker.endWalk()
+
+// iterate over items
+for item in walker {
+    // ... do something with an individual item
+}
+
+// generate an array of up to 10 items
+let tenItems = walker.fill(request: 10)
+// - for models of continuous sequences the array may be less than the requested length
+// - for models of discrete sequences, the array will be the requested length
 
 ```
 
