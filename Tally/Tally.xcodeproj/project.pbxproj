@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AFAB26E61DC01C4600176ACE /* new-yorker-captions.txt in Resources */ = {isa = PBXBuildFile; fileRef = AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */; };
 		AFDBD8E51DBEEFD7009B5FA8 /* Tally.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AFDBD8DB1DBEEFD7009B5FA8 /* Tally.framework */; };
 		AFDBD8EA1DBEEFD7009B5FA8 /* TallyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFDBD8E91DBEEFD7009B5FA8 /* TallyTests.swift */; };
 		AFDBD8EC1DBEEFD7009B5FA8 /* Tally.h in Headers */ = {isa = PBXBuildFile; fileRef = AFDBD8DE1DBEEFD7009B5FA8 /* Tally.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -25,6 +26,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "new-yorker-captions.txt"; sourceTree = "<group>"; };
 		AFDBD8DB1DBEEFD7009B5FA8 /* Tally.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Tally.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AFDBD8DE1DBEEFD7009B5FA8 /* Tally.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Tally.h; sourceTree = "<group>"; };
 		AFDBD8DF1DBEEFD7009B5FA8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -87,6 +89,7 @@
 			isa = PBXGroup;
 			children = (
 				AFDBD8E91DBEEFD7009B5FA8 /* TallyTests.swift */,
+				AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */,
 				AFDBD8EB1DBEEFD7009B5FA8 /* Info.plist */,
 			);
 			path = TallyTests;
@@ -193,6 +196,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AFAB26E61DC01C4600176ACE /* new-yorker-captions.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -408,6 +412,7 @@
 				AFDBD8F11DBEEFD7009B5FA8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		AFDBD8F21DBEEFD7009B5FA8 /* Build configuration list for PBXNativeTarget "TallyTests" */ = {
 			isa = XCConfigurationList;
@@ -416,6 +421,7 @@
 				AFDBD8F41DBEEFD7009B5FA8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

@@ -13,13 +13,12 @@ class TallyTests: XCTestCase {
     
     typealias Weather = Character
     let equalSunnyRainyDays: [Weather] = ["🌧","🌧","🌧","🌧", "☀️","☀️","☀️","☀️"]
-    var continuousModel: Tally<Weather>!
+    var continuousModel = Tally<Weather>()
     var continuousWalker: Walker<Weather>!
     
     override func setUp() {
         super.setUp()
         
-        continuousModel = Tally<Weather>()
         continuousModel.observe(sequence: equalSunnyRainyDays)
         continuousWalker = Walker(model: continuousModel)
     }
@@ -62,7 +61,38 @@ class TallyTests: XCTestCase {
         }
         
         // although randomly generated, the number will hopefully be close after this many runs
-        XCTAssertEqualWithAccuracy(average(numbers: sunnyDays), average(numbers: rainyDays), accuracy: 0.5)
+        XCTAssertEqualWithAccuracy(average(numbers: sunnyDays), average(numbers: rainyDays), accuracy: 1.0)
+        
+    }
+    
+    func testDiscreteModel() {
+        
+        // captions should contain 4141 captions from New Yorker cartoon submissions
+        let captions = array(from: "new-yorker-captions")
+        XCTAssertTrue(captions?.count == 4141, "Error loading captions")
+        
+        var startingWords: [String: Bool] = [:]
+        var allWords: [String: Bool] = [:]
+        
+        var model = Tally<String>(representing: .discreteSequence, ngram: .ngram(depth: 2))
+        
+        for caption in captions! {
+            
+            let words = caption.components(separatedBy: CharacterSet.whitespaces).flatMap({ word in normalize(text: word) })
+            startingWords[words[0]] = true
+            
+            model.startSequence()
+            
+            for word in words {
+                model.observe(next: word)
+                allWords[word] = true
+            }
+            
+            model.endSequence()
+        }
+        
+        XCTAssertTrue(model.startingItems().count == startingWords.keys.count, "Problem with starting words in model")
+        XCTAssertTrue(model.distributions().count == allWords.keys.count, "Problem with number of words in model")
         
     }
     
@@ -77,12 +107,16 @@ class TallyTests: XCTestCase {
         return Double(numbers.reduce(0,+))/Double(numbers.count)
     }
     
-    /*
-    func testPerformanceExample() {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
-        }
-    }*/
+    func array(from fileName: String) -> [String]? {
+        guard let path = Bundle(for: TallyTests.self).path(forResource: fileName, ofType: "txt") else { return nil }
+        do {
+            let content = try String(contentsOfFile:path, encoding: String.Encoding.utf8)
+            return content.components(separatedBy: CharacterSet.newlines)
+        } catch { return nil }
+    }
+    
+    func normalize(text: String) -> String {
+        return text.lowercased().trimmingCharacters(in: CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters))
+    }
     
 }
