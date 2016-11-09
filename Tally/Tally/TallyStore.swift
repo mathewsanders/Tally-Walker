@@ -16,24 +16,19 @@ public protocol TallyFlatStoreType {
     associatedtype StoreItem: Hashable
     
     /// A unique reference representing a node.
-    typealias Id = String // using UUID
+    typealias Id = String
     
     /// A tuple that represents a node in a tree representing a structure of ngrams.
-    /// - `node` is a wrapper for the item in the ngram which may represent a literal item, or also a marker to represent the start, or end of a sequence. It is up to the implementation to ensure that these markers are suitably accounted for in the store.
+    /// - `node` is a wrapper for the item in the ngram which may represent a literal item, or also a marker
+    /// to represent the start, or end of a sequence. It is up to the implementation to ensure that these
+    /// markers are suitably accounted for in the store.
     /// - `count` is an integer representing the number of occurrences of the node.
     /// - `childIds` an array of ids of children of this node.
     typealias StoreValue = (node: Node<StoreItem>, count: Int, childIds: [Id])
     
-    /// The type of sequence of the model that this store holds.
-    var sequenceType: TallySequenceType { get }
-    
-    /// The size of the ngram of the model that this store holds.
-    var ngramType: NgramType { get }
-    
-    /// Ids for children of the root node.
-    var rootChildIds: [Id] { get }
-    
-    /// The store needs to be initializable without any parameters.
+    /// Initialize a store with appropriate settings, and the ids of root node children.
+    /// It's expected that the store is filled with a subsequent call to `add(id: Id, value: StoreValue)`
+    /// for each item in the model.
     init(sequenceType: TallySequenceType, ngramType: NgramType, rootChildIds: [Id])
     
     /// Add information about a node to the store.
@@ -47,6 +42,17 @@ public protocol TallyFlatStoreType {
     /// - parameter id: the Id of the node to retrieve.
     func get(id: Id) -> StoreValue?
     
+    /// You should not need to call any of the following properties yourself. They are expected to be used
+    /// by `TallyBridge` as part of the process of loading a model from a store.
+    
+    /// The type of sequence of the model that this store holds.
+    var sequenceType: TallySequenceType { get }
+    
+    /// The size of the ngram of the model that this store holds.
+    var ngramType: NgramType { get }
+    
+    /// Ids for children of the root node.
+    var rootChildIds: [Id] { get }
 }
 
 /// A generic object that acts as a bridge between a Tally model and a compatable object that implements `TallyStoreType`.
