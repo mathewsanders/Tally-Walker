@@ -18,125 +18,130 @@ class StoreTests: XCTestCase {
         originalModel.observe(sequence: ["the", "cat", "in", "the", "hat"])
     }
     
-    override func tearDown() {
-        super.tearDown()
-    }
-    
+    /// Takes a model, saves the model to a local file, then loads a new model from that file and looks for distinguishing features to check if they are the same 
     func testStoreAndExtract() {
+        
         let bridge = TallyBridge<String, StringStore>()
         let store = bridge.load(model: originalModel)
         
-        let fileName = "data.plist"
+        let plistName = "data"
         
-        XCTAssertTrue(store.writeToDisk(at: fileName), "Model not written to disk")
+        XCTAssertTrue(store.save(to: plistName), "Model not saved to file")
         
-        if let storeFromDisk = StringStore(fromFile: fileName) {
-            
-            let newModel = bridge.load(store: storeFromDisk)
-            
-            XCTAssertTrue(originalModel.ngram.size == newModel.ngram.size, "Ngram size does not match")
-            XCTAssertTrue(originalModel.sequence == newModel.sequence, "Sequence type does not match")
-            XCTAssertTrue(originalModel.distributions().count == newModel.distributions().count, "Number of model distributions do not match")
-        }
-        else {
+        guard let storeFromFile = StringStore(from: plistName) else {
             XCTFail("Failed to load store from disk")
+            return
         }
+        
+        let newModel = bridge.load(store: storeFromFile)
+        
+        XCTAssertTrue(originalModel.ngram.size == newModel.ngram.size, "Ngram size does not match")
+        XCTAssertTrue(originalModel.sequence == newModel.sequence, "Sequence type does not match")
+        XCTAssertTrue(originalModel.distributions().count == newModel.distributions().count, "Number of model distributions do not match")
+        XCTAssertTrue(originalModel.itemProbabilities(after: "the").count == 2, "Number of item probabilities for the item 'the' is not expected")
+        XCTAssertTrue(originalModel.itemProbabilities(after: "the")[0].probability == 0.5, "Value for item probabilities for the item 'the' is not expected")
         
     }
     
-    /// An implementation of a store for Strings.
+    /// An implementation of a store for Tally<String> model that stores information to a .plist.
     public struct StringStore: TallyStoreType {
-        
-        public var ngramType: NgramType
-        public var sequence: TallySequenceType
         
         public typealias Id = String
         public typealias StringNode = Node<String>
-        
         public typealias StoreItem = String
-        
         public typealias NodeDetails = (node: Node<String>, count: Int, childIds: [Id])
         
-        var data: [Id: [String : Any]]
-        
+        public var sequenceType: TallySequenceType
+        public var ngramType: NgramType
         public var rootChildIds: [TallyStoreType.Id]
         
-        func writeToDisk(at fileName: String) -> Bool {
-
+        internal var data: [Id: [String : Any]]
+        
+        struct KeyName {
+            static let sequenceTypeValue = "sequenceTypeValue"
+            static let ngramSize = "ngramSize"
+            static let rootChildIds = "rootChildIds"
+            static let data = "data"
+            
+            struct NodeDetails {
+                static let value = "NodeValue"
+                static let count = "NodeCount"
+                static let childIds = "NodeChildIds"
+            }
+        }
+        
+        public init(sequenceType: TallySequenceType, ngramType: NgramType, rootChildIds: [Id]) {
+            self.sequenceType = sequenceType
+            self.ngramType = ngramType
+            self.rootChildIds = rootChildIds
+            data = [:] // data will be loaded incrementally with calls to `add`
+        }
+        
+        /// Attempts to load a store from a local .plist file.
+        init?(from plistName: String) {
+            
+            let filePath = StringStore.getFilePath(for: plistName)
+            
+            guard
+                let storeDict = NSMutableDictionary(contentsOfFile: filePath),
+                let sequenceRawValue = storeDict.object(forKey: KeyName.sequenceTypeValue) as? Int,
+                let sequenceType = TallySequenceType(rawValue: sequenceRawValue),
+                let ngramSize = storeDict.object(forKey: KeyName.ngramSize) as? Int,
+                let rootChildIds = storeDict.object(forKey: KeyName.rootChildIds) as? [StoreTests.StringStore.Id],
+                let data = storeDict.object(forKey: KeyName.data) as? [StoreTests.StringStore.Id : [String : Any]]
+                else { return nil }
+            
+            self.rootChildIds = rootChildIds
+            self.sequenceType = sequenceType
+            ngramType = NgramType.ngram(depth: ngramSize)
+            self.data = data
+        }
+        
+        /// Attempts to save a store to a local .plist file
+        /// returns: true if save to file was successful.
+        func save(to plistName: String) -> Bool {
+            
+            let filePath = StringStore.getFilePath(for: plistName)
+            print(filePath)
+            
             let storeDict: [String: Any] = [
-                "ngramSize": ngramType.size,
-                "sequenceType": sequence.rawValue,
-                "rootChildIds": rootChildIds,
-                "data": data
+                KeyName.ngramSize : ngramType.size,
+                KeyName.sequenceTypeValue: sequenceType.rawValue,
+                KeyName.rootChildIds: rootChildIds,
+                KeyName.data: data
             ]
             
             let dict = storeDict as NSDictionary
-  
-            let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
-            let documentsDirectory = paths[0]
-            let filePath = documentsDirectory + "/" + fileName
-            
-            print(filePath)
             
             return dict.write(toFile: filePath, atomically: false)
         }
         
-        public init() {
-            data = [:]
-            ngramType = .bigram
-            sequence = .continuousSequence
-            rootChildIds = []
-        }
-        
-        init?(fromFile fileName: String) {
-            
-            let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
-            let documentsDirectory = paths[0]
-            let filePath = documentsDirectory + "/" + fileName
-            
-            if let storeDict = NSMutableDictionary(contentsOfFile: filePath) {
-                data = storeDict.object(forKey: "data") as AnyObject as! [StoreTests.StringStore.Id : [String : Any]]
-                
-                let ngramSize = storeDict.object(forKey: "ngramSize") as! Int
-                ngramType = NgramType.ngram(depth: ngramSize)
-                
-                let sequenceRawValue = storeDict.object(forKey: "sequenceType") as! Int
-                sequence = TallySequenceType(rawValue: sequenceRawValue)!
-                
-                let childIds = storeDict.object(forKey: "rootChildIds") as! [String]
-                rootChildIds = childIds
-            }
-            else { return nil }
-        }
-        
         public func get(id: Id) -> NodeDetails? {
+            guard
+                let dict = data[id],
+                let value = dict[KeyName.NodeDetails.value] as? String,
+                let count = dict[KeyName.NodeDetails.count] as? Int,
+                let childIds = dict[KeyName.NodeDetails.childIds] as? [String],
+                let node = node(from: value)
+                else { return nil }
             
-            if let dict = data[id] {
-                
-                let value = dict["value"] as! String
-                let count = dict["count"] as! Int
-                let childIds = dict["childIds"] as! [String]
-                
-                if let node = node(from: value) {
-                    return NodeDetails(node, count, childIds)
-                }
-            }
-            return nil
+            return NodeDetails(node, count, childIds)
         }
         
         public mutating func add(id: Id, value: (node: Node<String>, count: Int, childIds: [Id])) {
             if let str = storeValue(from: value.node) {
-                
                 let dict: [String : Any] = [
-                    "value": str,
-                    "count": value.count,
-                    "childIds": value.childIds
+                    KeyName.NodeDetails.value: str,
+                    KeyName.NodeDetails.count: value.count,
+                    KeyName.NodeDetails.childIds: value.childIds
                 ]
-                
                 data[id] = dict
             }
         }
         
+        /// Translates a node into a string value that can be stored
+        /// example: the literal node `hello` is transformed into something like "Node.Item:Hello"
+        /// the node `unseenLeadingItems` is transformed into something like "Node.unseenLeadingItems"
         private func storeValue(from node: Node<String>) -> String? {
             switch node {
             case .root: return nil
@@ -145,6 +150,7 @@ class StoreTests: XCTestCase {
             }
         }
         
+        /// Translates a string value back into a node, the reverse of `storeValue(from: Node<String>)`
         private func node(from storeValue: String) -> Node<String>? {
             switch storeValue {
             case Node<String>.unseenLeadingItems.descriptor: return Node<String>.unseenLeadingItems
@@ -161,6 +167,14 @@ class StoreTests: XCTestCase {
                 }
                 return nil
             }
+        }
+        
+        /// helper function to get local file path for plist
+        private static func getFilePath(for plistName: String) -> String {
+            let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
+            let documentsDirectory = paths[0]
+            let filePath = documentsDirectory + "/" + plistName + ".plist"
+            return filePath
         }
     }
     

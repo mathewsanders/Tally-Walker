@@ -24,8 +24,17 @@ public protocol TallyStoreType {
     /// - `childIds` an array of ids of children of this node.
     typealias StoreValue = (node: Node<StoreItem>, count: Int, childIds: [Id])
     
+    /// The type of sequence of the model that this store holds.
+    var sequenceType: TallySequenceType { get }
+    
+    /// The size of the ngram of the model that this store holds.
+    var ngramType: NgramType { get }
+    
     /// Ids for children of the root node.
-    var rootChildIds: [Id] { get set }
+    var rootChildIds: [Id] { get }
+    
+    /// The store needs to be initalizable without any parameters.
+    init(sequenceType: TallySequenceType, ngramType: NgramType, rootChildIds: [Id])
     
     /// Add information about a node to the store
     ///
@@ -38,21 +47,6 @@ public protocol TallyStoreType {
     /// - parameter id: the Id of the node to retrieve.
     func get(id: Id) -> StoreValue?
     
-    /// The type of sequence of the model that this store holds.
-    var sequence: TallySequenceType { get set }
-    
-    /// The size of the ngram of the model that this store holds.
-    var ngramType: NgramType { get set }
-    
-    /// The store needs to be initalizable without any parameters.
-    init()
-    
-}
-
-extension TallyStoreType {
-    init() {
-        self.init()
-    }
 }
 
 /// A generic object that acts as a bridge between a Tally model and a compatable object that implements `TallyStoreType`.
@@ -64,7 +58,7 @@ public struct TallyBridge<Item: Hashable, Store: TallyStoreType> where Store.Sto
     /// - returns: A model made from information in the store.
     public func load(store: Store) -> Tally<Item> {
         
-        var model = Tally<Item>(representing: store.sequence, ngram: store.ngramType)
+        var model = Tally<Item>(representing: store.sequenceType, ngram: store.ngramType)
         var rootChildren: [Node<Item>: NodeEdges<Item>] = [:]
         
         store.rootChildIds.flatMap({ id in
@@ -113,12 +107,9 @@ public struct TallyBridge<Item: Hashable, Store: TallyStoreType> where Store.Sto
     /// - returns: An object conforming to `TallyStoreType` protocol.
     public func load(model: Tally<Item>) -> Store {
         
-        var store = Store()
-        store.ngramType = model.ngram
-        store.sequence = model.sequence
-        store.rootChildIds = model.root.childIds
+        var store = Store(sequenceType: model.sequence, ngramType: model.ngram, rootChildIds: model.root.childIds)
         
-        var queue = model.root.childIds
+        var queue = store.rootChildIds
         var seenIds: [Tally<Item>.Id] = []
         
         while !queue.isEmpty {
