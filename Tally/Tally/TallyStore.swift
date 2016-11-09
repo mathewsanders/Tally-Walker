@@ -11,7 +11,7 @@ import Foundation
 /// Defines the implementation needed to create a store to represent a `Tally` model.
 /// The internal structure of a `Tally` model is a tree. A `TallyStoreType` flattens this tree structure into a simple
 /// list of all nodes in the tree which is easier to represent in a textual format.
-public protocol TallyStoreType {
+public protocol TallyFlatStoreType {
     
     associatedtype StoreItem: Hashable
     
@@ -20,7 +20,7 @@ public protocol TallyStoreType {
     
     /// A tuple that represents a node in a tree representing a structure of ngrams.
     /// - `node` is a wrapper for the item in the ngram which may represent a literal item, or also a marker to represent the start, or end of a sequence. It is up to the implementation to ensure that these markers are suitably accounted for in the store.
-    /// - `count` is an integer representing the number of occurances of the node.
+    /// - `count` is an integer representing the number of occurrences of the node.
     /// - `childIds` an array of ids of children of this node.
     typealias StoreValue = (node: Node<StoreItem>, count: Int, childIds: [Id])
     
@@ -33,16 +33,16 @@ public protocol TallyStoreType {
     /// Ids for children of the root node.
     var rootChildIds: [Id] { get }
     
-    /// The store needs to be initalizable without any parameters.
+    /// The store needs to be initializable without any parameters.
     init(sequenceType: TallySequenceType, ngramType: NgramType, rootChildIds: [Id])
     
-    /// Add information about a node to the store
+    /// Add information about a node to the store.
     ///
     /// - parameter id: the Id of the node, used as an index.
-    /// - parameter value: the node, number of occurances, and childIds of the node.
+    /// - parameter value: the node, number of occurrences, and childIds of the node.
     mutating func add(id: Id, value: StoreValue)
     
-    /// Get the node, number of occurances, and Ids of child nodes for the node with the id
+    /// Get the node, number of occurrences, and Ids of child nodes for the node with the id.
     /// Returns nil if no node found in the store with that id.
     /// - parameter id: the Id of the node to retrieve.
     func get(id: Id) -> StoreValue?
@@ -51,7 +51,7 @@ public protocol TallyStoreType {
 
 /// A generic object that acts as a bridge between a Tally model and a compatable object that implements `TallyStoreType`.
 /// Creating a bridge allows a model to be exported into a store, and vice versa.
-public struct TallyBridge<Item: Hashable, Store: TallyStoreType> where Store.StoreItem == Item {
+public struct TallyBridge<Item: Hashable, Store: TallyFlatStoreType> where Store.StoreItem == Item {
 
     /// Loads a model from a store.
     /// - parameter store: An object of `TallyStoreType` storing information about a model
@@ -72,7 +72,6 @@ public struct TallyBridge<Item: Hashable, Store: TallyStoreType> where Store.Sto
         model.root = root
         return model
     }
-    
     
     private func loadEdge(with id: String, from store: Store, to model: Tally<Item>) -> NodeEdges<Item>? {
         
@@ -133,3 +132,78 @@ public struct TallyBridge<Item: Hashable, Store: TallyStoreType> where Store.Sto
     }
 }
 
+/// Suggested keys for use in the implementation of a TallyFlatStore object.
+/// Your implementation does not need to use these same keys, but it should have an equivalent set of keys.
+public struct TallyFlatStoreKeys {
+    
+    static let sequenceTypeValue = "Model.sequenceTypeValue"
+    static let ngramSize = "Model.ngramSize"
+    static let rootChildIds = "Model.rootChildIds"
+    static let data = "Model.data"
+    
+    struct NodeDetails {
+        static let textRepresentation = "Node.TextRepresentation"
+        static let count = "Node.Count"
+        static let childIds = "Node.ChildIds"
+    }
+    
+    struct NodePrefix {
+        static let root = "Node.Root"
+        static let sequenceStart = "Node.SequenceStart"
+        static let sequenceEnd = "Node.SequenceEnd"
+        static let unseenLeadingItems = "Node.UnseenLeadingItems"
+        static let unseenTrailingItems = "Node.UnseenTrailingItems"
+        static let item = "Node.Literal:"
+    }
+}
+
+/// If your Tally model is based around items that are also of the type `NodeRepresentableWithTextType` then your implementation of
+/// `TallyFlatStoreType` for this type include two convenience methods for the safe translation from a node to a text representation
+/// and vice versa.
+///
+/// This helps jump-start your implementation of `TallyFlatStoreType` leaving you to implement the mechanics of structuring data 
+/// for your persistant store.
+public protocol NodeRepresentableWithTextType {
+    
+    /// Initalize the item through a literal text value.
+    init?(_ text: String)
+    
+    /// return a text value of a node.
+    var textValue: String { get }
+}
+
+public extension TallyFlatStoreType where StoreItem: Hashable, StoreItem: NodeRepresentableWithTextType {
+    
+    /// Get the text representation of a node.
+    internal func textRepresentation(from node: Node<StoreItem>) -> String? {
+        switch node {
+        case .root: return nil
+        case .sequenceEnd: return TallyFlatStoreKeys.NodePrefix.sequenceEnd
+        case .sequenceStart: return TallyFlatStoreKeys.NodePrefix.sequenceStart
+        case .unseenTrailingItems: return TallyFlatStoreKeys.NodePrefix.unseenTrailingItems
+        case .unseenLeadingItems: return TallyFlatStoreKeys.NodePrefix.unseenLeadingItems
+        case .item(let value): return TallyFlatStoreKeys.NodePrefix.item + value.textValue
+        }
+    }
+    
+    /// Get the node from a text representation.
+    internal func node(from textRepresentation: String) -> Node<StoreItem>? {
+        switch textRepresentation {
+        case TallyFlatStoreKeys.NodePrefix.unseenLeadingItems: return Node<StoreItem>.unseenLeadingItems
+        case TallyFlatStoreKeys.NodePrefix.unseenTrailingItems: return Node<StoreItem>.unseenTrailingItems
+        case TallyFlatStoreKeys.NodePrefix.sequenceStart: return Node<StoreItem>.sequenceStart
+        case TallyFlatStoreKeys.NodePrefix.sequenceEnd: return Node<StoreItem>.sequenceEnd
+        case TallyFlatStoreKeys.NodePrefix.root: return nil
+            
+        default: // should be an item, check to see if it's got the correct item descriptor prefix
+            
+            let prefix = TallyFlatStoreKeys.NodePrefix.item
+            guard textRepresentation.hasPrefix(prefix) else { return nil }
+
+            let literalStr = textRepresentation.substring(from: prefix.endIndex)
+            guard let storeItem = StoreItem(literalStr) else { return nil }
+            
+            return Node<StoreItem>.item(storeItem)
+        }
+    }
+}

@@ -338,17 +338,6 @@ public enum Node<Item: Hashable>: Hashable {
         }
     }
     
-    public var descriptor: String {
-        switch self {
-        case .root: return "Node.Root"
-        case .sequenceStart: return "Node.SequenceStart"
-        case .sequenceEnd: return "Node.SequenceEnd"
-        case .unseenLeadingItems: return "Node.UnseenLeadingItems"
-        case .unseenTrailingItems: return "Node.UnseenTrailingItems"
-        case .item: return "Node.Item:"
-        }
-    }
-    
     /// Returns a Boolean value indicating whether two values are equal.
     ///
     /// Equality is the inverse of inequality. For any values `a` and `b`,

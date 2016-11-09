@@ -43,8 +43,9 @@ class StoreTests: XCTestCase {
         
     }
     
+
     /// An implementation of a store for Tally<String> model that stores information to a .plist.
-    public struct StringStore: TallyStoreType {
+    public struct StringStore: TallyFlatStoreType {
         
         public typealias Id = String
         public typealias StringNode = Node<String>
@@ -53,22 +54,9 @@ class StoreTests: XCTestCase {
         
         public var sequenceType: TallySequenceType
         public var ngramType: NgramType
-        public var rootChildIds: [TallyStoreType.Id]
+        public var rootChildIds: [TallyFlatStoreType.Id]
         
         internal var data: [Id: [String : Any]]
-        
-        struct KeyName {
-            static let sequenceTypeValue = "sequenceTypeValue"
-            static let ngramSize = "ngramSize"
-            static let rootChildIds = "rootChildIds"
-            static let data = "data"
-            
-            struct NodeDetails {
-                static let value = "NodeValue"
-                static let count = "NodeCount"
-                static let childIds = "NodeChildIds"
-            }
-        }
         
         public init(sequenceType: TallySequenceType, ngramType: NgramType, rootChildIds: [Id]) {
             self.sequenceType = sequenceType
@@ -84,11 +72,11 @@ class StoreTests: XCTestCase {
             
             guard
                 let storeDict = NSMutableDictionary(contentsOfFile: filePath),
-                let sequenceRawValue = storeDict.object(forKey: KeyName.sequenceTypeValue) as? Int,
+                let sequenceRawValue = storeDict.object(forKey: TallyFlatStoreKeys.sequenceTypeValue) as? Int,
                 let sequenceType = TallySequenceType(rawValue: sequenceRawValue),
-                let ngramSize = storeDict.object(forKey: KeyName.ngramSize) as? Int,
-                let rootChildIds = storeDict.object(forKey: KeyName.rootChildIds) as? [StoreTests.StringStore.Id],
-                let data = storeDict.object(forKey: KeyName.data) as? [StoreTests.StringStore.Id : [String : Any]]
+                let ngramSize = storeDict.object(forKey: TallyFlatStoreKeys.ngramSize) as? Int,
+                let rootChildIds = storeDict.object(forKey: TallyFlatStoreKeys.rootChildIds) as? [StoreTests.StringStore.Id],
+                let data = storeDict.object(forKey: TallyFlatStoreKeys.data) as? [StoreTests.StringStore.Id : [String : Any]]
                 else { return nil }
             
             self.rootChildIds = rootChildIds
@@ -105,10 +93,10 @@ class StoreTests: XCTestCase {
             print(filePath)
             
             let storeDict: [String: Any] = [
-                KeyName.ngramSize : ngramType.size,
-                KeyName.sequenceTypeValue: sequenceType.rawValue,
-                KeyName.rootChildIds: rootChildIds,
-                KeyName.data: data
+                TallyFlatStoreKeys.ngramSize : ngramType.size,
+                TallyFlatStoreKeys.sequenceTypeValue: sequenceType.rawValue,
+                TallyFlatStoreKeys.rootChildIds: rootChildIds,
+                TallyFlatStoreKeys.data: data
             ]
             
             let dict = storeDict as NSDictionary
@@ -118,55 +106,27 @@ class StoreTests: XCTestCase {
         
         public func get(id: Id) -> NodeDetails? {
             guard
-                let dict = data[id],
-                let value = dict[KeyName.NodeDetails.value] as? String,
-                let count = dict[KeyName.NodeDetails.count] as? Int,
-                let childIds = dict[KeyName.NodeDetails.childIds] as? [String],
-                let node = node(from: value)
+                let nodeDetails = data[id],
+                let textRepresentation = nodeDetails[TallyFlatStoreKeys.NodeDetails.textRepresentation] as? String,
+                let node = node(from: textRepresentation),
+                let count = nodeDetails[TallyFlatStoreKeys.NodeDetails.count] as? Int,
+                let childIds = nodeDetails[TallyFlatStoreKeys.NodeDetails.childIds] as? [String]
                 else { return nil }
             
             return NodeDetails(node, count, childIds)
         }
         
         public mutating func add(id: Id, value: (node: Node<String>, count: Int, childIds: [Id])) {
-            if let str = storeValue(from: value.node) {
-                let dict: [String : Any] = [
-                    KeyName.NodeDetails.value: str,
-                    KeyName.NodeDetails.count: value.count,
-                    KeyName.NodeDetails.childIds: value.childIds
-                ]
-                data[id] = dict
-            }
-        }
-        
-        /// Translates a node into a string value that can be stored
-        /// example: the literal node `hello` is transformed into something like "Node.Item:Hello"
-        /// the node `unseenLeadingItems` is transformed into something like "Node.unseenLeadingItems"
-        private func storeValue(from node: Node<String>) -> String? {
-            switch node {
-            case .root: return nil
-            case .sequenceEnd, .sequenceStart, .unseenTrailingItems, .unseenLeadingItems: return node.descriptor
-            case .item(let value): return node.descriptor + value
-            }
-        }
-        
-        /// Translates a string value back into a node, the reverse of `storeValue(from: Node<String>)`
-        private func node(from storeValue: String) -> Node<String>? {
-            switch storeValue {
-            case Node<String>.unseenLeadingItems.descriptor: return Node<String>.unseenLeadingItems
-            case Node<String>.unseenTrailingItems.descriptor: return Node<String>.unseenTrailingItems
-            case Node<String>.sequenceStart.descriptor: return Node<String>.sequenceStart
-            case Node<String>.sequenceEnd.descriptor: return Node<String>.sequenceEnd
-            case Node<String>.root.descriptor: return nil
-                
-            default: // should be an item, check to see if it's got the correct item descriptor prefix
-                let prefix = Node<String>.item("").descriptor
-                if storeValue.hasPrefix(prefix) {
-                    let literalStr = storeValue.substring(from: prefix.endIndex)
-                    return Node<String>.item(literalStr)
-                }
-                return nil
-            }
+            guard let nodeTextRepresentation = textRepresentation(from: value.node)
+                else { return }
+            
+            let nodeDetails: [String : Any] = [
+                TallyFlatStoreKeys.NodeDetails.textRepresentation: nodeTextRepresentation,
+                TallyFlatStoreKeys.NodeDetails.count: value.count,
+                TallyFlatStoreKeys.NodeDetails.childIds: value.childIds
+            ]
+            
+            data[id] = nodeDetails
         }
         
         /// helper function to get local file path for plist
@@ -177,5 +137,14 @@ class StoreTests: XCTestCase {
             return filePath
         }
     }
+}
+
+extension String: NodeRepresentableWithTextType {
+    public init?(_ text: String) {
+        self = text
+    }
     
+    public var textValue: String {
+        return self.description
+    }
 }

@@ -217,6 +217,116 @@ let tenItems = walker.fill(request: 10)
 
 ```
 
+## Saving Models
+
+The loading of Tally models in and out of a store are handled by an object that creates a bridge between a type of `Tally` item and a compatible 'store'.
+
+You'll need to create an implementation of the store that handles both the specific type of object represented by your model (e.g. a String, Int, or a custom object) and how the store persists data (e.g. writing to a file, saving to a database), but implementing some simple protocols gives you a jump-start to writing your store.
+
+First, here's an example of loading a `Tally<String>` model into a `StringPlistStore` store, which like the name suggests, persists information about a model of `String` items by writing to a plist file.
+
+### Saving a model to a plist
+
+```Swift
+// Create a bridge between an `Item` and an implementation of `TallyFlatStoreType`
+let bridge = TallyBridge<String, StringPlistStore>()
+
+// load the `Tally` model into a `StringStore`
+let store = bridge.load(model: model)
+
+// save the store
+store.save(to: "data.plist")
+```
+
+### Loading a model from a plist
+
+```Swift
+// Create a bridge between an `Item` and an implementation of `TallyFlatStoreType`
+let bridge = TallyBridge<String, StringPlistStore>()
+
+// load the store
+let store = StringStore(from: "data.plist")
+
+let model = bridge.load(store: store)
+
+// model is ready to interact with...
+
+```
+
+### Creating a store
+
+A `Tally` model represents ngrams internally as a tree of nodes where each node may be a literal item (e.g. the text "hello"), or represent the start or end of a sequence.
+
+`TallyFlatStoreType` defines the implementation of a store where information about nodes are accessed through calls to get or set information about a node through a unique identifier.
+
+As long as your store implements these requirements as defined, and provides a sensible way to save or retrieve its internal state then the TallyBridge provides the mechanics of transferring information between model and store, and vice versa.
+
+```Swift
+public protocol TallyFlatStoreType {
+
+    associatedtype StoreItem: Hashable
+
+    /// A unique reference representing a node.
+    typealias Id = String // using UUID
+
+    /// A tuple that represents a node in a tree representing a structure of ngrams.
+    /// - `node` is a wrapper for the item in the ngram which may represent a literal item, or also a marker to represent the start, or end of a sequence. It is up to the implementation to ensure that these markers are suitably accounted for in the store.
+    /// - `count` is an integer representing the number of occurrences of the node.
+    /// - `childIds` an array of ids of children of this node.
+    typealias StoreValue = (node: Node<StoreItem>, count: Int, childIds: [Id])
+
+    /// The type of sequence of the model that this store holds.
+    var sequenceType: TallySequenceType { get }
+
+    /// The size of the ngram of the model that this store holds.
+    var ngramType: NgramType { get }
+
+    /// Ids for children of the root node.
+    var rootChildIds: [Id] { get }
+
+    /// The store needs to be initializable without any parameters.
+    init(sequenceType: TallySequenceType, ngramType: NgramType, rootChildIds: [Id])
+
+    /// Add information about a node to the store.
+    ///
+    /// - parameter id: the Id of the node, used as an index.
+    /// - parameter value: the node, number of occurrences, and childIds of the node.
+    mutating func add(id: Id, value: StoreValue)
+
+    /// Get the node, number of occurrences, and Ids of child nodes for the node with the id.
+    /// Returns nil if no node found in the store with that id.
+    /// - parameter id: the Id of the node to retrieve.
+    func get(id: Id) -> StoreValue?
+
+}
+```
+
+
+If your model items can be safely transformed into a textual format without loss of information, extend your items to implement `NodeRepresentableWithTextType`.
+
+For most items this will be a trivial extension on your item type, for example for a model of type Tally<String>:
+
+```Swift
+extension String: NodeRepresentableWithTextType {
+    public init?(_ text: String) {
+        self = text
+    }
+
+    public var textValue: String {
+        return self.description
+    }
+}
+```
+
+This gives your implementation of `TallyFlatStoreType` access to two convenience methods to translate between a node, and a textual representation of the node which is ready to be entered into a store.
+
+Get a text representation of the node:
+`func textRepresentation(from node: Node<StoreItem>) -> String?`
+
+Get a node from the text representation:
+`func node(from textRepresentation: String) -> Node<StoreItem>?`
+
+
 ## Roadmap
 
 - [x] Build models from observed training examples
@@ -226,7 +336,7 @@ let tenItems = walker.fill(request: 10)
 - [x] List probability for next item in sequence
 - [ ] List probability for next sequence of items in sequence
 - [ ] List most frequent n-grams
-- [ ] Export/import model (maybe json, plist)
+- [x] Export/import model (maybe json, plist)
 - [ ] Persist model (maybe NSCoding, Core Data)
 - [ ] Add pseudocounts to smooth infrequent or unseen n-grams
 - [ ] Normalize items as they are observed while keeping original value and count
