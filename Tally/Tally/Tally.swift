@@ -23,7 +23,7 @@
 import Foundation
 
 /// Options for the type of sequence that can be represented.
-public enum TallySequenceType {
+public enum TallySequenceType: Int {
     
     /// Represents sequences where there is no arbitary beginning or end of data, for example weather patterns.
     case continuousSequence
@@ -79,6 +79,7 @@ public enum NgramType {
 /// Can be used with any items that adopt the `Hashable` protocol.
 public struct Tally<Item: Hashable> {
     
+    /// Type used to identify an item
     public typealias Id = String
     
     /// An ItemProbability is a tuple combining an item, and it's probability.
@@ -252,10 +253,17 @@ public struct Tally<Item: Hashable> {
         }
     }
     
-    public func ngramFirstItemIds() -> [Id] {
+    /// Ids for the first item if all ngrams
+    public var firstItemIds: [Id] {
         return root.childIds
     }
     
+    /// Look up a node by its Id
+    ///
+    /// - parameter id: the Id of the node to get details for
+    ///
+    /// returns: A tuple containing the node, the number of occurances of the node, and Ids for children of the node. 
+    /// Returns `nil` if a node with that id can not be found.
     public func nodeDetails(forId id: Id) -> (node: Node<Item>, count: Int, childIds: [Id])? {
         
         if let edge = findNodeEdges(with: id, startingAt: root) {
@@ -298,8 +306,10 @@ public enum Node<Item: Hashable>: Hashable {
     /// A literal item in the sequence.
     case item(Item)
     
-    /// Represents the boundary of items observed from a segment of a continuous sequence.
+    /// Represents unseen items that come before the observed segment of a continuous sequence.
     case unseenLeadingItems
+    
+    /// Represents unseen items that come after the observed segment of a continuous sequence.
     case unseenTrailingItems
     
     /// Represents the start of a discrete sequence.

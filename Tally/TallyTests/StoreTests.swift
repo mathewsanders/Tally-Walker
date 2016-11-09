@@ -26,49 +26,113 @@ class StoreTests: XCTestCase {
         let bridge = TallyBridge<String, StringStore>()
         let store = bridge.load(model: originalModel)
         
-        let newModel = bridge.load(store: store)
+        let fileName = "data.plist"
         
-        XCTAssertTrue(originalModel.ngram.size == newModel.ngram.size, "Ngram size does not match")
-        XCTAssertTrue(originalModel.sequence == newModel.sequence, "Sequence type does not match")
+        XCTAssertTrue(store.writeToDisk(at: fileName), "Model not written to disk")
+        
+        if let storeFromDisk = StringStore(fromFile: fileName) {
+            
+            let newModel = bridge.load(store: storeFromDisk)
+            
+            XCTAssertTrue(originalModel.ngram.size == newModel.ngram.size, "Ngram size does not match")
+            XCTAssertTrue(originalModel.sequence == newModel.sequence, "Sequence type does not match")
+        }
+        else {
+            XCTFail("Failed to load store from disk")
+        }
+        
     }
     
+    /// An implementation of a store for Strings.
     public struct StringStore: TallyStoreType {
         
-        public var ngramType: NgramType = .bigram
-        public var sequence: TallySequenceType = .continuousSequence
+        public var ngramType: NgramType
+        public var sequence: TallySequenceType
+        
+        public typealias Id = String
+        public typealias StringNode = Node<String>
         
         public typealias StoreItem = String
-        public typealias StringNode = Node<String>
-        public typealias Count = Int
-        public typealias Id = String
+        
         public typealias NodeDetails = (node: Node<String>, count: Int, childIds: [Id])
         
-        var data: [Id: (StoreItem, Count, [Id])] = [:]
+        var data: [Id: [String : Any]]
+        
         public var ngramFirstItemIds: [TallyStoreType.Id] = []
         
-        public init() {
+        func writeToDisk(at fileName: String) -> Bool {
+
+            let storeDict: [String: Any] = [
+                "ngramSize": ngramType.size,
+                "sequenceType": sequence.rawValue,
+                "data": data
+            ]
             
+            let dict = storeDict as NSDictionary
+  
+            let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
+            let documentsDirectory = paths[0]
+            let filePath = documentsDirectory + "/" + fileName
+            
+            print(filePath)
+            
+            return dict.write(toFile: filePath, atomically: false)
+        }
+        
+        init() {
+            data = [:]
+            ngramType = .bigram
+            sequence = .continuousSequence
+        }
+        
+        init?(fromFile fileName: String) {
+            
+            let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
+            let documentsDirectory = paths[0]
+            let filePath = documentsDirectory + "/" + fileName
+            
+            if let storeDict = NSMutableDictionary(contentsOfFile: filePath) {
+                data = storeDict.object(forKey: "data") as AnyObject as! [StoreTests.StringStore.Id : [String : Any]]
+                
+                let ngramSize = storeDict.object(forKey: "ngramSize") as! Int
+                ngramType = NgramType.ngram(depth: ngramSize)
+                
+                let sequenceRawValue = storeDict.object(forKey: "sequenceType") as! Int
+                sequence = TallySequenceType(rawValue: sequenceRawValue)!
+                
+            }
+            else { return nil }
         }
         
         public func get(id: Id) -> NodeDetails? {
             
-            if let result = data[id], let node = node(from: result.0) {
+            if let dict = data[id] {
                 
-                let count = result.1
-                let children = result.2
+                let value = dict["value"] as! String
+                let count = dict["count"] as! Int
+                let childIds = dict["childIds"] as! [String]
                 
-                return NodeDetails(node, count, children)
+                if let node = node(from: value) {
+                    return NodeDetails(node, count, childIds)
+                }
             }
             return nil
         }
         
         public mutating func add(id: Id, value: (node: Node<String>, count: Int, childIds: [Id])) {
             if let str = storeValue(from: value.node) {
-                data[id] = (str, value.count, value.childIds)
+                
+                let dict: [String : Any] = [
+                    "value": str,
+                    "count": value.count,
+                    "childIds": value.childIds
+                ]
+                
+                data[id] = dict
             }
         }
         
-        func storeValue(from node: Node<String>) -> String? {
+        private func storeValue(from node: Node<String>) -> String? {
             switch node {
             case .root: return nil
             case .sequenceEnd, .sequenceStart, .unseenTrailingItems, .unseenLeadingItems: return node.descriptor
@@ -76,7 +140,7 @@ class StoreTests: XCTestCase {
             }
         }
         
-        public func node(from storeValue: String) -> Node<String>? {
+        private func node(from storeValue: String) -> Node<String>? {
             switch storeValue {
             case Node<String>.unseenLeadingItems.descriptor: return Node<String>.unseenLeadingItems
             case Node<String>.unseenTrailingItems.descriptor: return Node<String>.unseenTrailingItems
