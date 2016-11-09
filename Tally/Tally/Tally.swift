@@ -23,7 +23,7 @@
 import Foundation
 
 /// Options for the type of sequence that can be represented.
-public enum SequenceType<Item: Hashable> {
+public enum TallySequenceType {
     
     /// Represents sequences where there is no arbitary beginning or end of data, for example weather patterns.
     case continuousSequence
@@ -41,19 +41,6 @@ public enum SequenceType<Item: Hashable> {
         return self == .discreteSequence
     }
     
-    fileprivate var nodeForStart: Node<Item> {
-        switch self {
-        case .continuousSequence: return Node.unseenItems
-        case .discreteSequence: return Node.sequenceStart
-        }
-    }
-    
-    fileprivate var nodeForEnd: Node<Item> {
-        switch self {
-        case .continuousSequence: return Node.unseenItems
-        case .discreteSequence: return Node.sequenceEnd
-        }
-    }
 }
 
 // MARK: -
@@ -92,6 +79,8 @@ public enum NgramType {
 /// Can be used with any items that adopt the `Hashable` protocol.
 public struct Tally<Item: Hashable> {
     
+    public typealias Id = String
+    
     /// An ItemProbability is a tuple combining an item, and it's probability.
     ///
     /// - probability is a `Double` between 0.0 and 1.0
@@ -102,7 +91,7 @@ public struct Tally<Item: Hashable> {
     public let ngram: NgramType
     
     /// The type of sequence that the frequency model represents.
-    public let sequence: SequenceType<Item>
+    public let sequence: TallySequenceType
     
     internal typealias Root = NodeEdges<Item>
     internal var root: Root
@@ -114,7 +103,7 @@ public struct Tally<Item: Hashable> {
     /// - parameter ngram: The type of n-gram to use when building the frequency model (default value is `Ngram.bigram`).
     ///
     /// - returns: An initialized frequency model object ready to start training.
-    public init(representing sequenceType: SequenceType<Item> = .continuousSequence, ngram: NgramType = .bigram) {
+    public init(representing sequenceType: TallySequenceType = .continuousSequence, ngram: NgramType = .bigram) {
         
         if ngram.size < 2 {
             NSException(name: NSExceptionName.invalidArgumentException, reason: "Model depth must be greater than 1", userInfo: nil).raise()
@@ -129,12 +118,12 @@ public struct Tally<Item: Hashable> {
     /// Start a series of method calls to observe an item from a sequence.
     public mutating func startSequence() {
         recentlyObserved.removeAll()
-        observe(next: sequence.nodeForStart)
+        observe(next: nodeForStart)
     }
     
     /// Conclude a series of method calls to observe an item from a sequence.
     public mutating func endSequence() {
-        observe(next: sequence.nodeForEnd)
+        observe(next: nodeForEnd)
         recentlyObserved.removeAll()
     }
     
@@ -248,6 +237,55 @@ public struct Tally<Item: Hashable> {
         let tail = nodes.clamped(by: ngram.size-1)
         return root.itemProbabilities(after: [root.node]+tail)
     }
+    
+    internal var nodeForStart: Node<Item> {
+        switch self.sequence {
+        case .continuousSequence: return .unseenLeadingItems
+        case .discreteSequence: return .sequenceStart
+        }
+    }
+    
+    internal var nodeForEnd: Node<Item> {
+        switch self.sequence {
+        case .continuousSequence: return .unseenTrailingItems
+        case .discreteSequence: return .sequenceEnd
+        }
+    }
+    
+    public func ngramFirstItemIds() -> [Id] {
+        return root.childIds
+    }
+    
+    public func nodeDetails(forId id: Id) -> (node: Node<Item>, count: Int, childIds: [Id])? {
+        
+        if let edge = findNodeEdges(with: id, startingAt: root) {
+            return (edge.node, edge.count, edge.childIds)
+        }
+        return nil
+    }
+    
+    private func findNodeEdges(with id: Id, startingAt edge: NodeEdges<Item>) -> NodeEdges<Item>? {
+        
+        if edge.id == id {
+            return edge
+        }
+        else {
+            
+            var foundEdge: NodeEdges<Item>? = nil
+            
+            // need to be careful here that the result from `findNodeEdges` is returned,
+            // not the `childEdge` otherwise will end up with recursive references
+            // maybe this could be a lazy map
+            let _ = edge.children.values.first(where: { childEdge in
+                let possibleEdge = findNodeEdges(with: id, startingAt: childEdge)
+                if possibleEdge != nil {
+                    foundEdge = possibleEdge
+                }
+                return possibleEdge != nil
+            })
+            return foundEdge
+        }
+    }
 }
 
 // MARK: -
@@ -261,7 +299,8 @@ public enum Node<Item: Hashable>: Hashable {
     case item(Item)
     
     /// Represents the boundary of items observed from a segment of a continuous sequence.
-    case unseenItems
+    case unseenLeadingItems
+    case unseenTrailingItems
     
     /// Represents the start of a discrete sequence.
     case sequenceStart
@@ -283,14 +322,14 @@ public enum Node<Item: Hashable>: Hashable {
     internal var isBoundaryOrRoot: Bool {
         switch self {
         case .item: return false
-        case .unseenItems, .sequenceEnd, .sequenceStart, .root: return true
+        case .unseenLeadingItems, .unseenTrailingItems, .sequenceEnd, .sequenceStart, .root: return true
         }
     }
     
     internal var isObservableBoundary: Bool {
         switch self {
         case .item, .sequenceEnd, .sequenceStart, .root: return false
-        case .unseenItems: return true
+        case .unseenLeadingItems, .unseenTrailingItems: return true
         }
     }
     
@@ -299,8 +338,20 @@ public enum Node<Item: Hashable>: Hashable {
         case .root: return 0
         case .sequenceStart: return 1
         case .sequenceEnd: return 2
-        case .unseenItems: return 3
+        case .unseenLeadingItems: return 3
+        case .unseenTrailingItems: return 4
         case .item(let item): return item.hashValue
+        }
+    }
+    
+    public var descriptor: String {
+        switch self {
+        case .root: return "Node.Root"
+        case .sequenceStart: return "Node.SequenceStart"
+        case .sequenceEnd: return "Node.SequenceEnd"
+        case .unseenLeadingItems: return "Node.UnseenLeadingItems"
+        case .unseenTrailingItems: return "Node.UnseenTrailingItems"
+        case .item: return "Node.Item:"
         }
     }
     
@@ -317,7 +368,8 @@ public enum Node<Item: Hashable>: Hashable {
         case (.root, .root): return true
         case (.sequenceStart, .sequenceStart): return true
         case (.sequenceEnd, .sequenceEnd): return true
-        case(.unseenItems, .unseenItems): return true
+        case(.unseenLeadingItems, .unseenLeadingItems): return true
+        case(.unseenTrailingItems, .unseenTrailingItems): return true
         case let(.item(leftItem), item(rightItem)): return leftItem == rightItem
         default: return false
         }
@@ -328,16 +380,24 @@ public enum Node<Item: Hashable>: Hashable {
 
 internal struct NodeEdges<Item: Hashable> {
     
-    internal typealias Nodes = [Node<Item>]
     internal typealias Children = [Node<Item>: NodeEdges<Item>]
     internal typealias ItemProbability = (probability: Double, item: Node<Item>)
     
     internal let node: Node<Item>
     internal var count: Int = 0
     internal var children: Children = [:]
+    internal var id: String = UUID().uuidString
+    
+    internal typealias Nodes = [Node<Item>]
     
     init(withItem node: Node<Item> = .root) {
         self.node = node
+    }
+    
+    init(node: Node<Item>, count: Int, children: Children) {
+        self.node = node
+        self.count = count
+        self.children = children
     }
     
     mutating func incrementCount(for sequence: Nodes) {
@@ -390,6 +450,10 @@ internal struct NodeEdges<Item: Hashable> {
         }
         
         return (itemsHead, itemsTail)
+    }
+    
+    internal var childIds: [String] {
+        return children.values.map({ $0.id })
     }
 }
 

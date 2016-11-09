@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AF554FAD1DD11B8F00995C86 /* TallyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF554FAC1DD11B8F00995C86 /* TallyStore.swift */; };
+		AF554FAF1DD11E0300995C86 /* StoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF554FAE1DD11E0300995C86 /* StoreTests.swift */; };
 		AFAB26E61DC01C4600176ACE /* new-yorker-captions.txt in Resources */ = {isa = PBXBuildFile; fileRef = AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */; };
 		AFDBD8E51DBEEFD7009B5FA8 /* Tally.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AFDBD8DB1DBEEFD7009B5FA8 /* Tally.framework */; };
 		AFDBD8EA1DBEEFD7009B5FA8 /* TallyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFDBD8E91DBEEFD7009B5FA8 /* TallyTests.swift */; };
@@ -26,6 +28,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		AF554FAC1DD11B8F00995C86 /* TallyStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TallyStore.swift; sourceTree = "<group>"; };
+		AF554FAE1DD11E0300995C86 /* StoreTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = StoreTests.swift; sourceTree = "<group>"; };
 		AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "new-yorker-captions.txt"; sourceTree = "<group>"; };
 		AFDBD8DB1DBEEFD7009B5FA8 /* Tally.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Tally.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AFDBD8DE1DBEEFD7009B5FA8 /* Tally.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Tally.h; sourceTree = "<group>"; };
@@ -79,6 +83,7 @@
 			children = (
 				AFDBD8DE1DBEEFD7009B5FA8 /* Tally.h */,
 				AFDBD8F71DBEEFFE009B5FA8 /* Tally.swift */,
+				AF554FAC1DD11B8F00995C86 /* TallyStore.swift */,
 				AFDBD8F91DBEF0D2009B5FA8 /* Walker.swift */,
 				AFDBD8DF1DBEEFD7009B5FA8 /* Info.plist */,
 			);
@@ -89,6 +94,7 @@
 			isa = PBXGroup;
 			children = (
 				AFDBD8E91DBEEFD7009B5FA8 /* TallyTests.swift */,
+				AF554FAE1DD11E0300995C86 /* StoreTests.swift */,
 				AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */,
 				AFDBD8EB1DBEEFD7009B5FA8 /* Info.plist */,
 			);
@@ -208,6 +214,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AFDBD8F81DBEEFFE009B5FA8 /* Tally.swift in Sources */,
+				AF554FAD1DD11B8F00995C86 /* TallyStore.swift in Sources */,
 				AFDBD8FA1DBEF0D2009B5FA8 /* Walker.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -217,6 +224,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AFDBD8EA1DBEEFD7009B5FA8 /* TallyTests.swift in Sources */,
+				AF554FAF1DD11E0300995C86 /* StoreTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
