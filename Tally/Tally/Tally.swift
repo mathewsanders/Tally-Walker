@@ -253,11 +253,6 @@ public struct Tally<Item: Hashable> {
         }
     }
     
-    /// Ids for the first item if all ngrams
-    public var firstItemIds: [Id] {
-        return root.childIds
-    }
-    
     /// Look up a node by its Id
     ///
     /// - parameter id: the Id of the node to get details for
@@ -278,20 +273,9 @@ public struct Tally<Item: Hashable> {
             return edge
         }
         else {
-            
-            var foundEdge: NodeEdges<Item>? = nil
-            
-            // need to be careful here that the result from `findNodeEdges` is returned,
-            // not the `childEdge` otherwise will end up with recursive references
-            // maybe this could be a lazy map
-            let _ = edge.children.values.first(where: { childEdge in
-                let possibleEdge = findNodeEdges(with: id, startingAt: childEdge)
-                if possibleEdge != nil {
-                    foundEdge = possibleEdge
-                }
-                return possibleEdge != nil
-            })
-            return foundEdge
+            // Reminder: need to be careful here that the result from `findNodeEdges` is returned,
+            // not the `childEdge` itself, otherwise will end up with recursive references.
+            return edge.children.values.lazy.flatMap{ self.findNodeEdges(with: id, startingAt: $0) }.first
         }
     }
 }

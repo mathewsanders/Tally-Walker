@@ -36,6 +36,7 @@ class StoreTests: XCTestCase {
             
             XCTAssertTrue(originalModel.ngram.size == newModel.ngram.size, "Ngram size does not match")
             XCTAssertTrue(originalModel.sequence == newModel.sequence, "Sequence type does not match")
+            XCTAssertTrue(originalModel.distributions().count == newModel.distributions().count, "Number of model distributions do not match")
         }
         else {
             XCTFail("Failed to load store from disk")
@@ -58,13 +59,14 @@ class StoreTests: XCTestCase {
         
         var data: [Id: [String : Any]]
         
-        public var ngramFirstItemIds: [TallyStoreType.Id] = []
+        public var rootChildIds: [TallyStoreType.Id]
         
         func writeToDisk(at fileName: String) -> Bool {
 
             let storeDict: [String: Any] = [
                 "ngramSize": ngramType.size,
                 "sequenceType": sequence.rawValue,
+                "rootChildIds": rootChildIds,
                 "data": data
             ]
             
@@ -79,10 +81,11 @@ class StoreTests: XCTestCase {
             return dict.write(toFile: filePath, atomically: false)
         }
         
-        init() {
+        public init() {
             data = [:]
             ngramType = .bigram
             sequence = .continuousSequence
+            rootChildIds = []
         }
         
         init?(fromFile fileName: String) {
@@ -100,6 +103,8 @@ class StoreTests: XCTestCase {
                 let sequenceRawValue = storeDict.object(forKey: "sequenceType") as! Int
                 sequence = TallySequenceType(rawValue: sequenceRawValue)!
                 
+                let childIds = storeDict.object(forKey: "rootChildIds") as! [String]
+                rootChildIds = childIds
             }
             else { return nil }
         }

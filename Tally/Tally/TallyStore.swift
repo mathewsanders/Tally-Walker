@@ -24,8 +24,8 @@ public protocol TallyStoreType {
     /// - `childIds` an array of ids of children of this node.
     typealias StoreValue = (node: Node<StoreItem>, count: Int, childIds: [Id])
     
-    /// Ngrams represent and series of items. This returns ids for the first item in each ngram.
-    var ngramFirstItemIds: [Id] { get set }
+    /// Ids for children of the root node.
+    var rootChildIds: [Id] { get set }
     
     /// Add information about a node to the store
     ///
@@ -67,7 +67,7 @@ public struct TallyBridge<Item: Hashable, Store: TallyStoreType> where Store.Sto
         var model = Tally<Item>(representing: store.sequence, ngram: store.ngramType)
         var rootChildren: [Node<Item>: NodeEdges<Item>] = [:]
         
-        store.ngramFirstItemIds.flatMap({ id in
+        store.rootChildIds.flatMap({ id in
             loadEdge(with: id, from: store, to: model)
         }).forEach({ edge in
             rootChildren[edge.node] = edge
@@ -116,9 +116,9 @@ public struct TallyBridge<Item: Hashable, Store: TallyStoreType> where Store.Sto
         var store = Store()
         store.ngramType = model.ngram
         store.sequence = model.sequence
-        store.ngramFirstItemIds = model.firstItemIds
+        store.rootChildIds = model.root.childIds
         
-        var queue = model.firstItemIds
+        var queue = model.root.childIds
         var seenIds: [Tally<Item>.Id] = []
         
         while !queue.isEmpty {
