@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4019ED8A1DDA6C6100B4114A /* Tally.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFDBD8F71DBEEFFE009B5FA8 /* Tally.swift */; };
+		4019ED8B1DDA6C6700B4114A /* TallyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF554FAC1DD11B8F00995C86 /* TallyStore.swift */; };
+		4019ED8C1DDA6C6E00B4114A /* Walker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFDBD8F91DBEF0D2009B5FA8 /* Walker.swift */; };
+		401C98671DDA6958006AB605 /* TallyStoreDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 401C98661DDA6958006AB605 /* TallyStoreDelegate.swift */; };
+		401C98681DDA6958006AB605 /* TallyStoreDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 401C98661DDA6958006AB605 /* TallyStoreDelegate.swift */; };
 		AF554FAD1DD11B8F00995C86 /* TallyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF554FAC1DD11B8F00995C86 /* TallyStore.swift */; };
 		AF554FAF1DD11E0300995C86 /* StoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF554FAE1DD11E0300995C86 /* StoreTests.swift */; };
 		AFAB26E61DC01C4600176ACE /* new-yorker-captions.txt in Resources */ = {isa = PBXBuildFile; fileRef = AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */; };
@@ -28,6 +33,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		401C98661DDA6958006AB605 /* TallyStoreDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TallyStoreDelegate.swift; sourceTree = "<group>"; };
 		AF554FAC1DD11B8F00995C86 /* TallyStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TallyStore.swift; sourceTree = "<group>"; };
 		AF554FAE1DD11E0300995C86 /* StoreTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = StoreTests.swift; sourceTree = "<group>"; };
 		AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "new-yorker-captions.txt"; sourceTree = "<group>"; };
@@ -84,6 +90,7 @@
 				AFDBD8DE1DBEEFD7009B5FA8 /* Tally.h */,
 				AFDBD8F71DBEEFFE009B5FA8 /* Tally.swift */,
 				AF554FAC1DD11B8F00995C86 /* TallyStore.swift */,
+				401C98661DDA6958006AB605 /* TallyStoreDelegate.swift */,
 				AFDBD8F91DBEF0D2009B5FA8 /* Walker.swift */,
 				AFDBD8DF1DBEEFD7009B5FA8 /* Info.plist */,
 			);
@@ -216,6 +223,7 @@
 				AFDBD8F81DBEEFFE009B5FA8 /* Tally.swift in Sources */,
 				AF554FAD1DD11B8F00995C86 /* TallyStore.swift in Sources */,
 				AFDBD8FA1DBEF0D2009B5FA8 /* Walker.swift in Sources */,
+				401C98671DDA6958006AB605 /* TallyStoreDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -223,8 +231,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4019ED8A1DDA6C6100B4114A /* Tally.swift in Sources */,
+				4019ED8C1DDA6C6E00B4114A /* Walker.swift in Sources */,
+				401C98681DDA6958006AB605 /* TallyStoreDelegate.swift in Sources */,
 				AFDBD8EA1DBEEFD7009B5FA8 /* TallyTests.swift in Sources */,
 				AF554FAF1DD11E0300995C86 /* StoreTests.swift in Sources */,
+				4019ED8B1DDA6C6700B4114A /* TallyStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

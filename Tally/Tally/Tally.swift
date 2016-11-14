@@ -94,8 +94,10 @@ public struct Tally<Item: Hashable> {
     /// The type of sequence that the frequency model represents.
     public let sequence: TallySequenceType
     
-    internal typealias Root = NodeEdges<Item>
-    internal var root: Root
+    internal var inMemoryStore: MemoryTallyStore<Item>
+    //internal typealias Root = NodeEdges<Item>
+    //internal var root: Root
+    
     internal var recentlyObserved: [Node<Item>]
     
     /// Initializes and returns a new tally object.
@@ -112,7 +114,10 @@ public struct Tally<Item: Hashable> {
         
         self.ngram = ngram
         self.sequence = sequenceType
-        self.root = NodeEdges(withItem: .root)
+        
+        //self.root = NodeEdges(withItem: .root)
+        self.inMemoryStore = MemoryTallyStore<Item>()
+        
         self.recentlyObserved = []
     }
     
@@ -167,7 +172,9 @@ public struct Tally<Item: Hashable> {
         recentlyObserved.clamp(to: ngram.size)
         
         for itemIndex in 0..<recentlyObserved.count {
-            root.incrementCount(for: [root.node] + recentlyObserved.clamped(by: recentlyObserved.count - itemIndex))
+            let sequence = recentlyObserved.clamped(by: recentlyObserved.count - itemIndex)
+            inMemoryStore.incrementCount(for: sequence)
+            //root.incrementCount(for: )
         }
     }
     
@@ -177,6 +184,8 @@ public struct Tally<Item: Hashable> {
     ///
     /// - returns: An array of item probabilities which may be empty.
     public func distributions(excluding excludedItems: [Node<Item>] = []) -> [ItemProbability] {
+        
+        let root = inMemoryStore.root
         
         let total: Int = root.children.values.reduce(0, { partial, edge in
             if edge.node.isBoundaryOrRoot { return partial }
@@ -236,7 +245,9 @@ public struct Tally<Item: Hashable> {
             print("Tally.items(following:) Warning: attempting to match sequence of \(nodes.count) items, which exceeds the n-gram size of \(ngram.size). The sequence of items has been automatically clamped to \(ngram.size-1)")
         }
         let tail = nodes.clamped(by: ngram.size-1)
-        return root.itemProbabilities(after: [root.node]+tail)
+        
+        return inMemoryStore.itemProbabilities(after: tail)
+        //return root.itemProbabilities(after: [root.node]+tail)
     }
     
     internal var nodeForStart: Node<Item> {
@@ -260,6 +271,8 @@ public struct Tally<Item: Hashable> {
     /// returns: A tuple containing the node, the number of occurances of the node, and Ids for children of the node. 
     /// Returns `nil` if a node with that id can not be found.
     public func nodeDetails(forId id: Id) -> (node: Node<Item>, count: Int, childIds: [Id])? {
+        
+        let root = inMemoryStore.root
         
         if let edge = findNodeEdges(with: id, startingAt: root) {
             return (edge.node, edge.count, edge.childIds)
