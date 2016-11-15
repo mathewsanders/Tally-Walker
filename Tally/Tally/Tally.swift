@@ -40,7 +40,6 @@ public enum TallySequenceType: Int {
     var isDiscrete: Bool {
         return self == .discreteSequence
     }
-    
 }
 
 // MARK: -
@@ -102,9 +101,11 @@ public struct Tally<Item: Hashable> {
         return delegate ?? _memoryStore // use delegate if it exists, fall back in in-memory store
     }
     
+    /*
     public var root: NodeEdges<Item> {
         return store.root
     }
+    */
     
     internal var recentlyObserved: [Node<Item>]
     
@@ -181,8 +182,8 @@ public struct Tally<Item: Hashable> {
         
         for itemIndex in 0..<recentlyObserved.count {
             let sequence = recentlyObserved.clamped(by: recentlyObserved.count - itemIndex)
-            
-            store.root.incrementCount(for: sequence)
+            store.incrementCount(for: sequence)
+            //store.root.incrementCount(for: sequence)
             //root.incrementCount(for: )
         }
     }
@@ -193,21 +194,7 @@ public struct Tally<Item: Hashable> {
     ///
     /// - returns: An array of item probabilities which may be empty.
     public func distributions(excluding excludedItems: [Node<Item>] = []) -> [ItemProbability] {
-        
-        let total: Int = root.children.values.reduce(0, { partial, edge in
-            if edge.node.isBoundaryOrRoot { return partial }
-            if excludedItems.contains(edge.node) { return partial }
-            return partial + edge.count
-        })
-        
-        return root.children.values.flatMap { edge in
-            
-            if edge.node.isBoundaryOrRoot { return nil }
-            if excludedItems.contains(edge.node) { return nil }
-            
-            let prob = Double(edge.count) / Double(total)
-            return (item: edge.node, probability: prob)
-        }
+        return store.distributions(excluding: excludedItems)
     }
     
     /// Get the distribution of items that represent items that have started a sequence.
@@ -271,6 +258,9 @@ public struct Tally<Item: Hashable> {
         }
     }
     
+    /*
+    // MARK: - Used for TallyBridge
+     
     /// Look up a node by its Id
     ///
     /// - parameter id: the Id of the node to get details for
@@ -296,6 +286,7 @@ public struct Tally<Item: Hashable> {
             return edge.children.values.lazy.flatMap{ self.findNodeEdges(with: id, startingAt: $0) }.first
         }
     }
+    */
 }
 
 // MARK: -
@@ -377,87 +368,6 @@ public enum Node<Item: Hashable>: Hashable {
     }
 }
 
-// MARK: -
-
-public struct NodeEdges<Item: Hashable> {
-    
-    internal typealias Children = [Node<Item>: NodeEdges<Item>]
-    internal typealias ItemProbability = (probability: Double, item: Node<Item>)
-    
-    internal let node: Node<Item>
-    internal var count: Int = 0
-    internal var children: Children = [:]
-    internal var id: String = UUID().uuidString
-    
-    internal typealias Nodes = [Node<Item>]
-    
-    init(withItem node: Node<Item> = .root) {
-        self.node = node
-    }
-    
-    init(node: Node<Item>, count: Int, children: Children) {
-        self.node = node
-        self.count = count
-        self.children = children
-    }
-    
-    mutating func incrementCount(for sequence: Nodes) {
-        
-        let (_, tail) = headAndTail(from: sequence)
-        
-        if let item = tail.first {
-            var child = children[item] ?? NodeEdges<Item>(withItem: item)
-            child.incrementCount(for: tail)
-            children[item] = child
-        }
-        else {
-            count += 1
-        }
-    }
-    
-    func itemProbabilities(after sequence: Nodes) -> [ItemProbability] {
-        
-        let (_, tail) = headAndTail(from: sequence)
-        
-        if let item = tail.first {
-            if let child = children[item] {
-                return child.itemProbabilities(after: tail)
-            }
-        }
-        else { // tail is empty
-            let total: Int = children.values.reduce(0, { partial, sequence in
-                return partial + sequence.count
-            })
-            
-            return children.values.map({ child in
-                let prob = Double(child.count) / Double(total)
-                return (probability: prob, item: child.node)
-            })
-        }
-        return []
-    }
-    
-    internal func headAndTail(from items: Nodes) -> (Node<Item>, Nodes) {
-        
-        if items.isEmpty {
-            NSException(name: NSExceptionName.invalidArgumentException, reason: "Items can not be empty", userInfo: nil).raise()
-        }
-        
-        var itemsTail = items
-        let itemsHead = itemsTail.remove(at: 0)
-        
-        if self.node != itemsHead {
-            NSException(name: NSExceptionName.invalidArgumentException, reason: "First item \(itemsHead) does not match item \(self.node)", userInfo: nil).raise()
-        }
-        
-        return (itemsHead, itemsTail)
-    }
-    
-    internal var childIds: [String] {
-        return children.values.map({ $0.id })
-    }
-}
-
 extension Array where Iterator.Element: Hashable {
     mutating func clamp(to size: Int) {
         self = Array(self.suffix(size))
@@ -465,5 +375,17 @@ extension Array where Iterator.Element: Hashable {
     
     func clamped(by size: Int) -> [Element] {
         return Array(self.suffix(size))
+    }
+    
+    func headAndTail() -> (Element, [Element]) {
+        
+        if self.isEmpty {
+            NSException(name: NSExceptionName.invalidArgumentException, reason: "Array can not be empty", userInfo: nil).raise()
+        }
+        
+        var tail = self
+        let head = tail.remove(at: 0)
+        
+        return (head, tail)
     }
 }

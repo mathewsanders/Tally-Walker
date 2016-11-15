@@ -54,6 +54,7 @@ class TallyTests: XCTestCase {
             
             // fill for continuous sequence should always return the requested size
             let sequence = continuousWalker.fill(request: fillSize)
+            print(sequence)
             XCTAssertTrue(sequence.count == fillSize, "Fill should have generated \(fillSize) items")
             
             sunnyDays.append(numberOfDays(in: sequence, matching: "☀️"))

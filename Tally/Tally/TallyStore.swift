@@ -6,6 +6,9 @@
 //  Copyright © 2016 Mat. All rights reserved.
 //
 
+
+/*
+
 import Foundation
 
 /// Defines the implementation needed to create a store to represent a `Tally` model.
@@ -216,3 +219,6 @@ public extension TallyFlatStoreType where StoreItem: Hashable, StoreItem: NodeRe
         }
     }
 }
+
+ 
+*/

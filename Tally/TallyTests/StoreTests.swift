@@ -6,6 +6,7 @@
 //  Copyright © 2016 Mat. All rights reserved.
 //
 
+/*
 import XCTest
 @testable import Tally
 
@@ -148,3 +149,4 @@ extension String: NodeRepresentableWithTextType {
         return self.description
     }
 }
+*/
