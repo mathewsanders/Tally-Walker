@@ -75,7 +75,7 @@ public struct TallyBridge<Item: Hashable, Store: TallyFlatStoreType> where Store
         
         let root = NodeEdges<Item>(node: Node<Item>.root, count: 0, children: rootChildren)
         
-        model.inMemoryStore.root = root
+        model.store.root = root
         
         //model.root = root
         return model
@@ -115,7 +115,7 @@ public struct TallyBridge<Item: Hashable, Store: TallyFlatStoreType> where Store
     public func load(model: Tally<Item>) -> Store {
         
         //var store = Store(sequenceType: model.sequence, ngramType: model.ngram, rootChildIds: model.root.childIds)
-        var store = Store(sequenceType: model.sequence, ngramType: model.ngram, rootChildIds: model.inMemoryStore.root.childIds)
+        var store = Store(sequenceType: model.sequence, ngramType: model.ngram, rootChildIds: model.store.root.childIds)
         
         var queue = store.rootChildIds
         var seenIds: [Tally<Item>.Id] = []

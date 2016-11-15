@@ -94,9 +94,17 @@ public struct Tally<Item: Hashable> {
     /// The type of sequence that the frequency model represents.
     public let sequence: TallySequenceType
     
-    internal var inMemoryStore: MemoryTallyStore<Item>
-    //internal typealias Root = NodeEdges<Item>
-    //internal var root: Root
+    public var delegate: AnyTallyStore<Item>?
+    
+    private var _memoryStore: AnyTallyStore<Item>
+    
+    internal var store: AnyTallyStore<Item> {
+        return delegate ?? _memoryStore // use delegate if it exists, fall back in in-memory store
+    }
+    
+    public var root: NodeEdges<Item> {
+        return store.root
+    }
     
     internal var recentlyObserved: [Node<Item>]
     
@@ -116,7 +124,7 @@ public struct Tally<Item: Hashable> {
         self.sequence = sequenceType
         
         //self.root = NodeEdges(withItem: .root)
-        self.inMemoryStore = MemoryTallyStore<Item>()
+        self._memoryStore = AnyTallyStore(MemoryTallyStore<Item>())
         
         self.recentlyObserved = []
     }
@@ -173,7 +181,8 @@ public struct Tally<Item: Hashable> {
         
         for itemIndex in 0..<recentlyObserved.count {
             let sequence = recentlyObserved.clamped(by: recentlyObserved.count - itemIndex)
-            inMemoryStore.incrementCount(for: sequence)
+            
+            store.root.incrementCount(for: sequence)
             //root.incrementCount(for: )
         }
     }
@@ -184,8 +193,6 @@ public struct Tally<Item: Hashable> {
     ///
     /// - returns: An array of item probabilities which may be empty.
     public func distributions(excluding excludedItems: [Node<Item>] = []) -> [ItemProbability] {
-        
-        let root = inMemoryStore.root
         
         let total: Int = root.children.values.reduce(0, { partial, edge in
             if edge.node.isBoundaryOrRoot { return partial }
@@ -246,7 +253,7 @@ public struct Tally<Item: Hashable> {
         }
         let tail = nodes.clamped(by: ngram.size-1)
         
-        return inMemoryStore.itemProbabilities(after: tail)
+        return store.itemProbabilities(after: tail)
         //return root.itemProbabilities(after: [root.node]+tail)
     }
     
@@ -271,9 +278,7 @@ public struct Tally<Item: Hashable> {
     /// returns: A tuple containing the node, the number of occurances of the node, and Ids for children of the node. 
     /// Returns `nil` if a node with that id can not be found.
     public func nodeDetails(forId id: Id) -> (node: Node<Item>, count: Int, childIds: [Id])? {
-        
-        let root = inMemoryStore.root
-        
+                
         if let edge = findNodeEdges(with: id, startingAt: root) {
             return (edge.node, edge.count, edge.childIds)
         }
@@ -374,7 +379,7 @@ public enum Node<Item: Hashable>: Hashable {
 
 // MARK: -
 
-internal struct NodeEdges<Item: Hashable> {
+public struct NodeEdges<Item: Hashable> {
     
     internal typealias Children = [Node<Item>: NodeEdges<Item>]
     internal typealias ItemProbability = (probability: Double, item: Node<Item>)
