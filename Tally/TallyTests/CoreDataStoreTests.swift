@@ -16,15 +16,12 @@ class CoreDataStoreTests: XCTestCase {
         let store = CoreDataTallyStore<String>()
         
         var originalModel = Tally<String>()
-        originalModel.delegate = AnyTallyStore(store)
+        originalModel.store = AnyTallyStore(store)
         originalModel.observe(sequence: ["hello", "world"])
         originalModel.observe(sequence: ["hello", "kitty"])
 
         var newModel = Tally<String>()
-        newModel.delegate = AnyTallyStore(store)
-        
-        print("\n** store **")
-        dump(store)
+        newModel.store = AnyTallyStore(store)
         
         print("\n** original model **")
         dump(originalModel.itemProbabilities(after: "hello"))
@@ -32,33 +29,23 @@ class CoreDataStoreTests: XCTestCase {
         print("\n** new model **")
         dump(newModel.itemProbabilities(after: "hello"))
         
-        print("\n")
-        
-        store.stack.saveContext()
+        //store.stack.saveContext()
     }
 }
 
-extension String: TallyStoreType {
+extension String: LosslessDictionaryConvertible {
     
-    public init?(dictionaryRepresentation:NSDictionary?) {
-        guard let dictionary = dictionaryRepresentation,
-            let value = dictionary["value"] as? String
+    static let dictionaryRepresentationKey = "String.self"
+    
+    public init?(dictionaryRepresentation dictionary: NSDictionary) {
+        //guard let dictionary = dictionaryRepresentation,
+        guard let value = dictionary[String.dictionaryRepresentationKey] as? String
             else { return nil }
         self = value
     }
     
     public func dictionaryRepresentation() -> NSDictionary {
-        let representation = ["value": self]
+        let representation = [String.dictionaryRepresentationKey: self]
         return representation as NSDictionary
-    }
-    
-    public init?(coder: NSCoder) {
-        guard let value = coder.decodeObject(forKey: "self") as? String
-            else { return nil }
-        self = value
-    }
-    
-    func encode(with coder: NSCoder) {
-        coder.encode(self, forKey: "self")
     }
 }

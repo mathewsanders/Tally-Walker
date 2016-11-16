@@ -93,19 +93,13 @@ public struct Tally<Item: Hashable> {
     /// The type of sequence that the frequency model represents.
     public let sequence: TallySequenceType
     
-    public var delegate: AnyTallyStore<Item>?
+    public var store: AnyTallyStore<Item>?
     
     private var _memoryStore: AnyTallyStore<Item>
     
-    internal var store: AnyTallyStore<Item> {
-        return delegate ?? _memoryStore // use delegate if it exists, fall back in in-memory store
+    private var _store: AnyTallyStore<Item> {
+        return store ?? _memoryStore // use external store if it exists, fall back in in-memory store
     }
-    
-    /*
-    public var root: NodeEdges<Item> {
-        return store.root
-    }
-    */
     
     internal var recentlyObserved: [Node<Item>]
     
@@ -123,10 +117,7 @@ public struct Tally<Item: Hashable> {
         
         self.ngram = ngram
         self.sequence = sequenceType
-        
-        //self.root = NodeEdges(withItem: .root)
         self._memoryStore = AnyTallyStore(MemoryTallyStore<Item>())
-        
         self.recentlyObserved = []
     }
     
@@ -182,9 +173,7 @@ public struct Tally<Item: Hashable> {
         
         for itemIndex in 0..<recentlyObserved.count {
             let sequence = recentlyObserved.clamped(by: recentlyObserved.count - itemIndex)
-            store.incrementCount(for: sequence)
-            //store.root.incrementCount(for: sequence)
-            //root.incrementCount(for: )
+            _store.incrementCount(for: sequence)
         }
     }
     
@@ -194,7 +183,7 @@ public struct Tally<Item: Hashable> {
     ///
     /// - returns: An array of item probabilities which may be empty.
     public func distributions(excluding excludedItems: [Node<Item>] = []) -> [ItemProbability] {
-        return store.distributions(excluding: excludedItems)
+        return _store.distributions(excluding: excludedItems)
     }
     
     /// Get the distribution of items that represent items that have started a sequence.
@@ -239,11 +228,7 @@ public struct Tally<Item: Hashable> {
             print("Tally.items(following:) Warning: attempting to match sequence of \(nodes.count) items, which exceeds the n-gram size of \(ngram.size). The sequence of items has been automatically clamped to \(ngram.size-1)")
         }
         let tail = nodes.clamped(by: ngram.size-1)
-        
-        print("getting probabilities following", tail)
-        
-        return store.itemProbabilities(after: tail)
-        //return root.itemProbabilities(after: [root.node]+tail)
+        return _store.itemProbabilities(after: tail)
     }
     
     internal var nodeForStart: Node<Item> {
@@ -259,41 +244,11 @@ public struct Tally<Item: Hashable> {
         case .discreteSequence: return .sequenceEnd
         }
     }
-    
-    /*
-    // MARK: - Used for TallyBridge
-     
-    /// Look up a node by its Id
-    ///
-    /// - parameter id: the Id of the node to get details for
-    ///
-    /// returns: A tuple containing the node, the number of occurances of the node, and Ids for children of the node. 
-    /// Returns `nil` if a node with that id can not be found.
-    public func nodeDetails(forId id: Id) -> (node: Node<Item>, count: Int, childIds: [Id])? {
-                
-        if let edge = findNodeEdges(with: id, startingAt: root) {
-            return (edge.node, edge.count, edge.childIds)
-        }
-        return nil
-    }
-    
-    private func findNodeEdges(with id: Id, startingAt edge: NodeEdges<Item>) -> NodeEdges<Item>? {
-        
-        if edge.id == id {
-            return edge
-        }
-        else {
-            // Reminder: need to be careful here that the result from `findNodeEdges` is returned,
-            // not the `childEdge` itself, otherwise will end up with recursive references.
-            return edge.children.values.lazy.flatMap{ self.findNodeEdges(with: id, startingAt: $0) }.first
-        }
-    }
-    */
 }
 
 // MARK: -
 
-/// Different types of nodes used to build a tree of `NodeEdges`.
+/// Different types of nodes used to represent ngram.
 ///
 /// Nodes may represent an actual item in a sequence, or a sequence boundary.
 public enum Node<Item: Hashable>: Hashable {

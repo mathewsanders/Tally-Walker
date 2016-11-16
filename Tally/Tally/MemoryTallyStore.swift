@@ -8,15 +8,12 @@
 
 import Foundation
 
-class MemoryTallyStore<MemoryItem: Hashable> : TallyStoreDelegate {
+class MemoryTallyStore<Item>: TallyStoreType where Item: Hashable {
     
-    typealias Item = MemoryItem
-    
-    public typealias Root = NodeEdges<Item>
-    public var root: Root
+    private var root: MemoryNode<Item>
     
     init() {
-        self.root = NodeEdges(withItem: .root)
+        self.root = MemoryNode(withItem: .root)
     }
     
     public func incrementCount(for sequence: [Node<Item>]) {
@@ -48,17 +45,15 @@ class MemoryTallyStore<MemoryItem: Hashable> : TallyStoreDelegate {
 
 // MARK: -
 
-public struct NodeEdges<Item: Hashable> {
+fileprivate struct MemoryNode<Item> where Item: Hashable {
     
-    internal typealias Children = [Node<Item>: NodeEdges<Item>]
+    internal typealias Children = [Node<Item>: MemoryNode<Item>]
     internal typealias ItemProbability = (probability: Double, item: Node<Item>)
     
     internal let node: Node<Item>
     internal var count: Double = 0
     internal var children: Children = [:]
     internal var id: String = UUID().uuidString
-    
-    internal typealias Nodes = [Node<Item>]
     
     init(withItem node: Node<Item> = .root) {
         self.node = node
@@ -70,16 +65,12 @@ public struct NodeEdges<Item: Hashable> {
         self.children = children
     }
     
-    internal var childIds: [String] {
-        return children.values.map({ $0.id })
-    }
-    
-    mutating func incrementCount(for sequence: Nodes) {
+    mutating func incrementCount(for sequence: [Node<Item>]) {
         
         let (_, tail) = sequence.headAndTail()
         
         if let item = tail.first {
-            var child = children[item] ?? NodeEdges<Item>(withItem: item)
+            var child = children[item] ?? MemoryNode<Item>(withItem: item)
             child.incrementCount(for: tail)
             children[item] = child
         }
@@ -88,7 +79,7 @@ public struct NodeEdges<Item: Hashable> {
         }
     }
     
-    func itemProbabilities(after sequence: Nodes) -> [ItemProbability] {
+    func itemProbabilities(after sequence: [Node<Item>]) -> [ItemProbability] {
         
         let (_, tail) = sequence.headAndTail()
         
@@ -97,10 +88,6 @@ public struct NodeEdges<Item: Hashable> {
                 return child.itemProbabilities(after: tail)
             }
         }
-            
-            
-            
-            
             
         else { // tail is empty
             let total: Double = children.values.reduce(0.0, { partial, child in

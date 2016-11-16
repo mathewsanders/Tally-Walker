@@ -11,21 +11,17 @@ import CoreData
 
 // http://redqueencoder.com/property-lists-and-user-defaults-in-swift/
 /// A representation of a Type with internal property keys and values mapped to a NSDictionary that can be used in store
-protocol TallyStoreType: Hashable {
-    init?(dictionaryRepresentation:NSDictionary?)
+protocol LosslessDictionaryConvertible {
+    init?(dictionaryRepresentation: NSDictionary)
     func dictionaryRepresentation() -> NSDictionary
 }
 
-class CoreDataTallyStore<StoreItem: TallyStoreType>: TallyStoreDelegate {
-    
-    typealias Item = StoreItem
-    
+class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item: LosslessDictionaryConvertible {
+        
     var stack = CoreDataStack()
+    private var root: CoreDataNode
     
-    public typealias Root = CoreDataNode
-    public var root: Root
-    
-    var context: NSManagedObjectContext {
+    private var context: NSManagedObjectContext {
         return stack.persistentContainer.viewContext
     }
     
@@ -49,19 +45,16 @@ class CoreDataTallyStore<StoreItem: TallyStoreType>: TallyStoreDelegate {
         
         let total: Double = root.childNodes.reduce(0.0, { partial, child in
             
-            //let node = Node<Item>(dictionaryRepresentation: child.nodeDictionaryRepresentation!)!
             let node: Node<Item> = child.node()
-            
             if node.isBoundaryOrRoot { return partial }
             if excludedItems.contains(node) { return partial }
+            
             return partial + child.count
         })
         
         return root.childNodes.flatMap { child in
             
-            //let node = Node<Item>(dictionaryRepresentation: child.nodeDictionaryRepresentation!)!
             let node: Node<Item> = child.node()
-            
             if node.isBoundaryOrRoot { return nil }
             if excludedItems.contains(node) { return nil }
             
@@ -71,35 +64,40 @@ class CoreDataTallyStore<StoreItem: TallyStoreType>: TallyStoreDelegate {
     }
 }
 
-enum NodeKey: String {
-    case boundary = "boundary"
-    case item = "item"
-    case root = "root"
+fileprivate enum NodeKey: String {
+    case boundary = "Node.Boundary"
+    case item = "Note.Item"
+    case root = "Node.Root"
+    
+    var dictionaryKey: String {
+        return self.rawValue
+    }
 }
 
-enum NodeBoundaryKey: String {
-    case sequenceStart = "Value.SequenceStart"
-    case sequenceEnd = "Value.SequenceEnd"
-    case unseenLeadingItems = "Value.UnseenLeadingItems"
-    case unseenTrailingItems = "Value.UnseenTrailingItems"
+fileprivate enum NodeBoundaryKey: String {
+    case sequenceStart = "SequenceStart"
+    case sequenceEnd = "SequenceEnd"
+    case unseenLeadingItems = "UnseenLeadingItems"
+    case unseenTrailingItems = "UnseenTrailingItems"
     
     var dictionaryRepresentation: [String: AnyObject] {
         return [NodeKey.boundary.rawValue: self.rawValue as AnyObject]
     }
 }
 
-extension Node where Item: TallyStoreType {
+fileprivate extension Node where Item: LosslessDictionaryConvertible {
     
-    static func boundryNode(from value: String) -> Node<Item>? {
-        if let boundryType = NodeBoundaryKey(rawValue: value) {
-            switch boundryType {
-            case .sequenceEnd: return Node<Item>.sequenceEnd
-            case .sequenceStart: return Node<Item>.sequenceStart
-            case .unseenLeadingItems: return Node<Item>.unseenLeadingItems
-            case .unseenTrailingItems: return Node<Item>.unseenTrailingItems
-            }
+    static func boundaryNode(from value: String) -> Node<Item>? {
+        
+        guard let boundaryType = NodeBoundaryKey(rawValue: value)
+            else { return nil }
+        
+        switch boundaryType {
+        case .sequenceEnd: return Node<Item>.sequenceEnd
+        case .sequenceStart: return Node<Item>.sequenceStart
+        case .unseenLeadingItems: return Node<Item>.unseenLeadingItems
+        case .unseenTrailingItems: return Node<Item>.unseenTrailingItems
         }
-        return nil
     }
     
     init?(dictionaryRepresentation: NSDictionary) {
@@ -108,30 +106,23 @@ extension Node where Item: TallyStoreType {
             let keyRawValue = dictionary.keys.first,
             let key = NodeKey(rawValue: keyRawValue),
             let value = dictionary[keyRawValue]
-            
-        else {
-            print("could not create node from dictionary")
-            return nil
-        }
+            else { return nil }
         
         switch key {
         case .root:
-            print("creting root from dictionary")
             self = Node<Item>.root
             
         case .boundary:
-            if let boundaryValue = value as? String, let node = Node<Item>.boundryNode(from: boundaryValue) {
-                print("creting boundary from dictionary")
-                self = node
-            }
-            else { return nil }
+            guard let boundaryValue = value as? String,
+                let node = Node<Item>.boundaryNode(from: boundaryValue)
+                else { return nil }
+            self = node
             
         case .item:
-            if let itemDictionary = value as? NSDictionary, let item = Item(dictionaryRepresentation: itemDictionary) {
-                print("creting literal item from dictionary")
-                self = Node<Item>.item(item)
-            }
-            else { return nil }
+            guard let itemDictionary = value as? NSDictionary,
+                let item = Item(dictionaryRepresentation: itemDictionary)
+                else { return nil }
+            self = Node<Item>.item(item)
         }
     }
     
@@ -140,7 +131,7 @@ extension Node where Item: TallyStoreType {
         let dictionary: [String: AnyObject] = {
             switch self {
             // root
-            case .root: return [NodeKey.root.rawValue: "root" as AnyObject]
+            case .root: return [NodeKey.root.dictionaryKey: "root" as AnyObject]
                 
             // boundary items
             case .sequenceEnd: return NodeBoundaryKey.sequenceEnd.dictionaryRepresentation
@@ -150,7 +141,7 @@ extension Node where Item: TallyStoreType {
             
             // literal item
             case .item(let value):
-                return [NodeKey.item.rawValue: value.dictionaryRepresentation()]
+                return [NodeKey.item.dictionaryKey: value.dictionaryRepresentation()]
             }
         }()
         
@@ -158,13 +149,9 @@ extension Node where Item: TallyStoreType {
     }
 }
 
-extension CoreDataNode {
+fileprivate extension CoreDataNode {
     
-    func node<Item: TallyStoreType>() -> Node<Item> {
-        
-        print("getting node from core data")
-        print("self.nodeDictionaryRepresentation", self.nodeDictionaryRepresentation)
-        
+    func node<Item: LosslessDictionaryConvertible>() -> Node<Item> {
         guard let dictionary = self.nodeDictionaryRepresentation,
             let node = Node<Item>(dictionaryRepresentation: dictionary)
             else { fatalError("CoreDataNode internal inconsistancy") }
@@ -176,26 +163,25 @@ extension CoreDataNode {
         return self.children as? Set<CoreDataNode> ?? Set<CoreDataNode>()
     }
     
-    convenience init<Item: TallyStoreType>(node: Node<Item> = Node<Item>.root, in context: NSManagedObjectContext) {
+    convenience init<Item: LosslessDictionaryConvertible>(node: Node<Item> = Node<Item>.root, in context: NSManagedObjectContext) {
         
         self.init(context: context)
-        self.id = UUID().uuidString
+        self.id = UUID().uuidString // TODO: Remove id from model
         self.nodeDictionaryRepresentation = node.dictionaryRepresentation()
         
-        // TODO: Check to see if constructor is ever called with non-empty collection of children
         self.count = 0.0
-        self.children = NSSet()
+        self.children = NSSet() // TODO: Check to see if children can be set as nil
     }
     
-    func incrementCount<Item: TallyStoreType>(for sequence: [Node<Item>]) {
+    func incrementCount<Item: LosslessDictionaryConvertible>(for sequence: [Node<Item>]) {
         
         let (_, tail) = sequence.headAndTail()
         
-        if let item = tail.first, let context = managedObjectContext {
+        if let node = tail.first, let context = managedObjectContext {
             
-            let child = childNodes.first(where: { node in
-                return node.nodeDictionaryRepresentation == item.dictionaryRepresentation()
-            }) ?? CoreDataNode(node: item, in: context)
+            let child = childNodes.first(where: { child in
+                return child.nodeDictionaryRepresentation == node.dictionaryRepresentation()
+            }) ?? CoreDataNode(node: node, in: context)
             
             child.incrementCount(for: tail)
             self.addToChildren(child)
@@ -205,13 +191,13 @@ extension CoreDataNode {
         }
     }
     
-    func itemProbabilities<Item: TallyStoreType>(after sequence: [Node<Item>]) -> [(probability: Double, item: Node<Item>)] {
+    func itemProbabilities<Item: LosslessDictionaryConvertible>(after sequence: [Node<Item>]) -> [(probability: Double, item: Node<Item>)] {
         
         let (_, tail) = sequence.headAndTail()
         
-        if let item = tail.first {
-            if let child = childNodes.first(where: { node in
-                return node.nodeDictionaryRepresentation == item.dictionaryRepresentation()
+        if let node = tail.first {
+            if let child = childNodes.first(where: { child in
+                return child.nodeDictionaryRepresentation == node.dictionaryRepresentation()
             }){
                 return child.itemProbabilities(after: tail)
             }
@@ -223,12 +209,41 @@ extension CoreDataNode {
             
             return childNodes.flatMap({ child in
                 let prob = child.count / total
-                if let item = Node<Item>(dictionaryRepresentation: child.nodeDictionaryRepresentation!) {
-                    return (probability: prob, item: item)
-                }
-                return nil // TODO: Better way to deal with unlikely failure than return nil?
+                let node: Node<Item> = child.node()
+                return (probability: prob, item: node)
             })
         }
         return []
+    }
+}
+
+class CoreDataStack {
+    
+    lazy var persistentContainer: NSPersistentContainer = {
+        
+        // Bundle(identifier: "com.mathewsanders.Tally")
+        let bundle = Bundle(for: CoreDataStack.self) // check this works as expected in a module
+        
+        // TODO: Investigate option for creating model in code rather than as a resource
+        // especially if this allows for the NSManagedObject subclasses to be automatically generated
+        guard let modelUrl = bundle.url(forResource: "TallyStoreModel", withExtension: "momd"),
+            let mom = NSManagedObjectModel(contentsOf: modelUrl)
+            else { fatalError("Unresolved error") }
+        
+        let container = NSPersistentContainer(name: "TallyStoreModel", managedObjectModel: mom)
+        
+        container.loadPersistentStores{ (storeDescription, error) in
+            if let error = error { fatalError("Unresolved error \(error)") } // TODO: Manage error
+        }
+        return container
+    }()
+    
+    func saveContext() {
+        let context = persistentContainer.viewContext
+        if context.hasChanges {
+            do {
+                try context.save()
+            } catch let error as NSError { fatalError("Unresolved error \(error.description)") } // TODO: Manage error
+        }
     }
 }
