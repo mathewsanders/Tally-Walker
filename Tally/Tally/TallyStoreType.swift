@@ -50,3 +50,91 @@ public class AnyTallyStore<Item>: TallyStoreType where Item: Hashable {
         return _distributions(excludedItems)
     }
 }
+
+public protocol TallyStoreNodeType {
+    
+    associatedtype Item: Hashable
+    
+    // get and set the number of occurances of this node
+    var count: Double { get set }
+    
+    // get the node
+    var node: Node<Item> { get }
+    
+    // get child nodes
+    var childNodes: [Self] { get }
+    
+    // add a child
+    func addChild(_: Self)
+    
+    // return an existing child node matching an item, or create a new child node with that item
+    func childNode(with item: Node<Item>) -> Self
+    
+    // initalize with node, no children, count of zero
+    init(withItem: Node<Item>)
+    
+}
+
+extension TallyStoreNodeType  {
+    
+    internal typealias ItemProbability = (probability: Double, item: Node<Item>)
+    
+    mutating func incrementCount(for sequence: [Node<Item>]) {
+        
+        let (_, tail) = sequence.headAndTail()
+        
+        if let item = tail.first {
+            var child = childNode(with: item)
+            child.incrementCount(for: tail)
+            addChild(child)
+        }
+        else {
+            count += 1
+        }
+    }
+    
+    func itemProbabilities(after sequence: [Node<Item>]) -> [ItemProbability] {
+        
+        let (_, tail) = sequence.headAndTail()
+        
+        if let item = tail.first {
+            
+            let child = childNode(with: item)
+            return child.itemProbabilities(after: tail)
+            //            if let child = children[item] {
+            //                return child.itemProbabilities(after: tail)
+            //            }
+        }
+            
+        else { // tail is empty
+            
+            let total: Double = childNodes.reduce(0.0, { partial, child in
+                return partial + child.count
+            })
+            
+            return childNodes.map({ child in
+                let prob = child.count / total
+                return (probability: prob, item: child.node)
+            })
+        }
+        //return []
+    }
+    
+    func distributions(excluding excludedItems: [Node<Item>] = []) -> [ItemProbability] {
+        
+        let total: Double = childNodes.reduce(0.0, { partial, child in
+            if child.node.isBoundaryOrRoot { return partial }
+            if excludedItems.contains(child.node) { return partial }
+            return partial + child.count
+        })
+        
+        return childNodes.flatMap { child in
+            
+            if child.node.isBoundaryOrRoot { return nil }
+            if excludedItems.contains(child.node) { return nil }
+            
+            let prob = child.count / total
+            return (item: child.node, probability: prob)
+        }
+    }
+}
