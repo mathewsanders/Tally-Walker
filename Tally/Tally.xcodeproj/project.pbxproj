@@ -12,8 +12,6 @@
 		401C98671DDA6958006AB605 /* TallyStoreType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 401C98661DDA6958006AB605 /* TallyStoreType.swift */; };
 		40A15FC11DDBA5CA00E2CED0 /* MemoryTallyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40A15FC01DDBA5CA00E2CED0 /* MemoryTallyStore.swift */; };
 		40FA5E991DDBBBC6009FC865 /* CoreDataStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40FA5E981DDBBBC6009FC865 /* CoreDataStoreTests.swift */; };
-		AF554FAD1DD11B8F00995C86 /* --depreciated-TallyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF554FAC1DD11B8F00995C86 /* --depreciated-TallyStore.swift */; };
-		AF554FAF1DD11E0300995C86 /* --depreciated-StoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF554FAE1DD11E0300995C86 /* --depreciated-StoreTests.swift */; };
 		AFAB26E61DC01C4600176ACE /* new-yorker-captions.txt in Resources */ = {isa = PBXBuildFile; fileRef = AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */; };
 		AFDBD8E51DBEEFD7009B5FA8 /* Tally.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AFDBD8DB1DBEEFD7009B5FA8 /* Tally.framework */; };
 		AFDBD8EA1DBEEFD7009B5FA8 /* TallyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFDBD8E91DBEEFD7009B5FA8 /* TallyTests.swift */; };
@@ -38,8 +36,6 @@
 		401C98661DDA6958006AB605 /* TallyStoreType.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TallyStoreType.swift; sourceTree = "<group>"; };
 		40A15FC01DDBA5CA00E2CED0 /* MemoryTallyStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MemoryTallyStore.swift; sourceTree = "<group>"; };
 		40FA5E981DDBBBC6009FC865 /* CoreDataStoreTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CoreDataStoreTests.swift; sourceTree = "<group>"; };
-		AF554FAC1DD11B8F00995C86 /* --depreciated-TallyStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "--depreciated-TallyStore.swift"; sourceTree = "<group>"; };
-		AF554FAE1DD11E0300995C86 /* --depreciated-StoreTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "--depreciated-StoreTests.swift"; sourceTree = "<group>"; };
 		AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "new-yorker-captions.txt"; sourceTree = "<group>"; };
 		AFDBD8DB1DBEEFD7009B5FA8 /* Tally.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Tally.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AFDBD8DE1DBEEFD7009B5FA8 /* Tally.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Tally.h; sourceTree = "<group>"; };
@@ -84,7 +80,6 @@
 			children = (
 				401C98661DDA6958006AB605 /* TallyStoreType.swift */,
 				40A15FC01DDBA5CA00E2CED0 /* MemoryTallyStore.swift */,
-				AF554FAC1DD11B8F00995C86 /* --depreciated-TallyStore.swift */,
 			);
 			name = TallyStore;
 			sourceTree = "<group>";
@@ -125,7 +120,6 @@
 			children = (
 				AFDBD8E91DBEEFD7009B5FA8 /* TallyTests.swift */,
 				40FA5E981DDBBBC6009FC865 /* CoreDataStoreTests.swift */,
-				AF554FAE1DD11E0300995C86 /* --depreciated-StoreTests.swift */,
 				AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */,
 				AFDBD8EB1DBEEFD7009B5FA8 /* Info.plist */,
 			);
@@ -246,7 +240,6 @@
 			files = (
 				4019ED921DDB87FF00B4114A /* TallyStoreModel.xcdatamodeld in Sources */,
 				AFDBD8F81DBEEFFE009B5FA8 /* Tally.swift in Sources */,
-				AF554FAD1DD11B8F00995C86 /* --depreciated-TallyStore.swift in Sources */,
 				AFDBD8FA1DBEF0D2009B5FA8 /* Walker.swift in Sources */,
 				4019ED8E1DDB67A800B4114A /* CoreDataTallyStore.swift in Sources */,
 				401C98671DDA6958006AB605 /* TallyStoreType.swift in Sources */,
@@ -260,7 +253,6 @@
 			files = (
 				40FA5E991DDBBBC6009FC865 /* CoreDataStoreTests.swift in Sources */,
 				AFDBD8EA1DBEEFD7009B5FA8 /* TallyTests.swift in Sources */,
-				AF554FAF1DD11E0300995C86 /* --depreciated-StoreTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
