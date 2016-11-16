@@ -23,7 +23,7 @@ public protocol TallyStoreType: class {
 // http://krakendev.io/blog/generic-protocols-and-their-shortcomings
 // https://realm.io/news/type-erased-wrappers-in-swift/
 
-public class AnyTallyStore<Item>: TallyStoreType where Item: Hashable {
+public class AnyTallyStore<Item> where Item: Hashable {
     
     public typealias ItemProbability = (probability: Double, item: Node<Item>)
     public typealias Nodes = [Node<Item>]
@@ -70,9 +70,6 @@ public protocol TallyStoreNodeType {
     // return an existing child node matching an item, or create a new child node with that item
     func childNode(with item: Node<Item>) -> Self
     
-    // initalize with node, no children, count of zero
-    init(withItem: Node<Item>)
-    
 }
 
 extension TallyStoreNodeType  {
@@ -101,9 +98,6 @@ extension TallyStoreNodeType  {
             
             let child = childNode(with: item)
             return child.itemProbabilities(after: tail)
-            //            if let child = children[item] {
-            //                return child.itemProbabilities(after: tail)
-            //            }
         }
             
         else { // tail is empty
@@ -117,7 +111,6 @@ extension TallyStoreNodeType  {
                 return (probability: prob, item: child.node)
             })
         }
-        //return []
     }
     
     func distributions(excluding excludedItems: [Node<Item>] = []) -> [ItemProbability] {

@@ -9,29 +9,20 @@
 import Foundation
 import CoreData
 
-// http://redqueencoder.com/property-lists-and-user-defaults-in-swift/
-/// A representation of a Type with internal property keys and values mapped to a NSDictionary that can be used in store
-protocol LosslessDictionaryConvertible {
-    init?(dictionaryRepresentation: NSDictionary)
-    func dictionaryRepresentation() -> NSDictionary
-}
-
 class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item: LosslessDictionaryConvertible {
         
     var stack = CoreDataStack()
-    private var root: CoreDataNode
-    
-    private var context: NSManagedObjectContext {
-        return stack.persistentContainer.viewContext
-    }
+    private var root: CoreDataNodeWrapper<Item>
     
     init() {
-        self.root = CoreDataNode(node: Node<Item>.root, in: stack.persistentContainer.viewContext)
+        self.root = CoreDataNodeWrapper(in: stack.persistentContainer.viewContext)
     }
     
     deinit {
         stack.saveContext()
     }
+    
+    // MARK: TallyStoreType
     
     public func incrementCount(for sequence: [Node<Item>]) {    
         root.incrementCount(for: [Node<Item>.root] + sequence)
@@ -42,26 +33,119 @@ class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item: Lossl
     }
     
     func distributions(excluding excludedItems: [Node<Item>]) -> [(probability: Double, item: Node<Item>)] {
+        return root.distributions(excluding: excludedItems)
+    }
+}
+
+// MARK: - TallyStoreNodeType
+
+fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Hashable, Item: LosslessDictionaryConvertible {
+    
+    private var _node: CoreDataNode
+    private var context: NSManagedObjectContext
+    
+    init(in context: NSManagedObjectContext) {
+        self._node = CoreDataNode(node: Node<Item>.root, in: context)
+        self.context = context
+    }
+    
+    init(node: CoreDataNode, in context: NSManagedObjectContext) {
+        self._node = node
+        self.context = context
+    }
+    
+    convenience init(item: Node<Item>, in context: NSManagedObjectContext) {
+        let node = CoreDataNode(node: item, in: context)
+        self.init(node: node, in: context)
+    }
+    
+    internal var node: Node<Item> {
         
-        let total: Double = root.childNodes.reduce(0.0, { partial, child in
-            
-            let node: Node<Item> = child.node()
-            if node.isBoundaryOrRoot { return partial }
-            if excludedItems.contains(node) { return partial }
-            
-            return partial + child.count
-        })
+        guard let dictionary = _node.nodeDictionaryRepresentation,
+            let nodeFromDictionary = Node<Item>(dictionaryRepresentation: dictionary)
+            else { fatalError("CoreDataNode internal inconsistancy") }
         
-        return root.childNodes.flatMap { child in
-            
-            let node: Node<Item> = child.node()
-            if node.isBoundaryOrRoot { return nil }
-            if excludedItems.contains(node) { return nil }
-            
-            let prob = child.count / total
-            return (item: node, probability: prob)
+        return nodeFromDictionary
+    }
+    
+    internal var count: Double {
+        get { return _node.count }
+        set { _node.count = newValue }
+    }
+    
+    public func addChild(_ child: CoreDataNodeWrapper<Item>) {
+        _node.addToChildren(child._node)
+    }
+    
+    public var childNodes: [CoreDataNodeWrapper<Item>]{
+        return Array(_node.childrenSet.map{ return CoreDataNodeWrapper(node: $0, in: context) })
+    }
+    
+    public func childNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item> {
+        return childNodes.first(where: { wrapper in
+            return wrapper.node == item
+        }) ?? CoreDataNodeWrapper(item: item, in: context)
+    }
+}
+
+// MARK: - CoreDataNode Helper
+
+fileprivate extension CoreDataNode {
+    
+    var childrenSet: Set<CoreDataNode> {
+        return (children as? Set<CoreDataNode> ?? Set<CoreDataNode>())
+    }
+    
+    convenience init<Item: LosslessDictionaryConvertible>(node: Node<Item>, in context: NSManagedObjectContext) {
+        
+        self.init(context: context)
+        self.id = UUID().uuidString // TODO: Remove id from model
+        self.nodeDictionaryRepresentation = node.dictionaryRepresentation()
+        
+        self.count = 0.0
+        self.children = NSSet() // TODO: Check to see if children can be set as nil
+    }
+}
+
+// MARK: - CoreDataStack
+
+internal class CoreDataStack {
+    
+    lazy var persistentContainer: NSPersistentContainer = {
+        
+        // Bundle(identifier: "com.mathewsanders.Tally")
+        let bundle = Bundle(for: CoreDataStack.self) // check this works as expected in a module
+        
+        // TODO: Investigate option for creating model in code rather than as a resource
+        // especially if this allows for the NSManagedObject subclasses to be automatically generated
+        guard let modelUrl = bundle.url(forResource: "TallyStoreModel", withExtension: "momd"),
+            let mom = NSManagedObjectModel(contentsOf: modelUrl)
+            else { fatalError("Unresolved error") }
+        
+        let container = NSPersistentContainer(name: "TallyStoreModel", managedObjectModel: mom)
+        
+        container.loadPersistentStores{ (storeDescription, error) in
+            if let error = error { fatalError("Unresolved error \(error)") } // TODO: Manage error
+        }
+        return container
+    }()
+    
+    func saveContext() {
+        let context = persistentContainer.viewContext
+        if context.hasChanges {
+            do {
+                try context.save()
+            } catch let error as NSError { fatalError("Unresolved error \(error.description)") } // TODO: Manage error
         }
     }
+}
+
+// MARK: - LosslessDictionaryConvertible & Node extension
+
+/// A representation of a Type with internal property keys and values mapped to a NSDictionary that can be used in store
+protocol LosslessDictionaryConvertible {
+    init?(dictionaryRepresentation: NSDictionary)
+    func dictionaryRepresentation() -> NSDictionary
 }
 
 fileprivate enum NodeKey: String {
@@ -138,7 +222,7 @@ fileprivate extension Node where Item: LosslessDictionaryConvertible {
             case .sequenceStart: return NodeBoundaryKey.sequenceStart.dictionaryRepresentation
             case .unseenLeadingItems: return NodeBoundaryKey.unseenLeadingItems.dictionaryRepresentation
             case .unseenTrailingItems: return NodeBoundaryKey.unseenTrailingItems.dictionaryRepresentation
-            
+                
             // literal item
             case .item(let value):
                 return [NodeKey.item.dictionaryKey: value.dictionaryRepresentation()]
@@ -146,104 +230,5 @@ fileprivate extension Node where Item: LosslessDictionaryConvertible {
         }()
         
         return dictionary as NSDictionary
-    }
-}
-
-fileprivate extension CoreDataNode {
-    
-    func node<Item: LosslessDictionaryConvertible>() -> Node<Item> {
-        guard let dictionary = self.nodeDictionaryRepresentation,
-            let node = Node<Item>(dictionaryRepresentation: dictionary)
-            else { fatalError("CoreDataNode internal inconsistancy") }
-        
-        return node
-    }
-    
-    var childNodes: Set<CoreDataNode> {
-        return self.children as? Set<CoreDataNode> ?? Set<CoreDataNode>()
-    }
-    
-    convenience init<Item: LosslessDictionaryConvertible>(node: Node<Item> = Node<Item>.root, in context: NSManagedObjectContext) {
-        
-        self.init(context: context)
-        self.id = UUID().uuidString // TODO: Remove id from model
-        self.nodeDictionaryRepresentation = node.dictionaryRepresentation()
-        
-        self.count = 0.0
-        self.children = NSSet() // TODO: Check to see if children can be set as nil
-    }
-    
-    func incrementCount<Item: LosslessDictionaryConvertible>(for sequence: [Node<Item>]) {
-        
-        let (_, tail) = sequence.headAndTail()
-        
-        if let node = tail.first, let context = managedObjectContext {
-            
-            let child = childNodes.first(where: { child in
-                return child.nodeDictionaryRepresentation == node.dictionaryRepresentation()
-            }) ?? CoreDataNode(node: node, in: context)
-            
-            child.incrementCount(for: tail)
-            self.addToChildren(child)
-        }
-        else {
-            count += 1
-        }
-    }
-    
-    func itemProbabilities<Item: LosslessDictionaryConvertible>(after sequence: [Node<Item>]) -> [(probability: Double, item: Node<Item>)] {
-        
-        let (_, tail) = sequence.headAndTail()
-        
-        if let node = tail.first {
-            if let child = childNodes.first(where: { child in
-                return child.nodeDictionaryRepresentation == node.dictionaryRepresentation()
-            }){
-                return child.itemProbabilities(after: tail)
-            }
-        }
-        else { // tail is empty
-            let total: Double = childNodes.reduce(0.0, { partial, child in
-                return partial + child.count
-            })
-            
-            return childNodes.flatMap({ child in
-                let prob = child.count / total
-                let node: Node<Item> = child.node()
-                return (probability: prob, item: node)
-            })
-        }
-        return []
-    }
-}
-
-class CoreDataStack {
-    
-    lazy var persistentContainer: NSPersistentContainer = {
-        
-        // Bundle(identifier: "com.mathewsanders.Tally")
-        let bundle = Bundle(for: CoreDataStack.self) // check this works as expected in a module
-        
-        // TODO: Investigate option for creating model in code rather than as a resource
-        // especially if this allows for the NSManagedObject subclasses to be automatically generated
-        guard let modelUrl = bundle.url(forResource: "TallyStoreModel", withExtension: "momd"),
-            let mom = NSManagedObjectModel(contentsOf: modelUrl)
-            else { fatalError("Unresolved error") }
-        
-        let container = NSPersistentContainer(name: "TallyStoreModel", managedObjectModel: mom)
-        
-        container.loadPersistentStores{ (storeDescription, error) in
-            if let error = error { fatalError("Unresolved error \(error)") } // TODO: Manage error
-        }
-        return container
-    }()
-    
-    func saveContext() {
-        let context = persistentContainer.viewContext
-        if context.hasChanges {
-            do {
-                try context.save()
-            } catch let error as NSError { fatalError("Unresolved error \(error.description)") } // TODO: Manage error
-        }
     }
 }

@@ -8,13 +8,15 @@
 
 import Foundation
 
-class MemoryTallyStore<Item>: TallyStoreType where Item: Hashable {
+internal class MemoryTallyStore<Item>: TallyStoreType where Item: Hashable {
     
     private var root: MemoryNode<Item>
     
     init() {
         self.root = MemoryNode(withItem: .root)
     }
+    
+    // MARK: TallyStoreType
     
     public func incrementCount(for sequence: [Node<Item>]) {
         root.incrementCount(for: [root.node] + sequence)
@@ -29,7 +31,7 @@ class MemoryTallyStore<Item>: TallyStoreType where Item: Hashable {
     }
 }
 
-// MARK: -
+// MARK: - TallyStoreNodeType
 
 fileprivate final class MemoryNode<Item>: TallyStoreNodeType where Item: Hashable {
     
