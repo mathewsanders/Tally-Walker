@@ -29,19 +29,19 @@ class MemoryTallyStore<MemoryItem: Hashable> : TallyStoreDelegate {
     
     public func distributions(excluding excludedItems: [Node<Item>] = []) -> [(probability: Double, item: Node<Item>)] {
         
-        let total: Int = root.children.values.reduce(0, { partial, edge in
-            if edge.node.isBoundaryOrRoot { return partial }
-            if excludedItems.contains(edge.node) { return partial }
-            return partial + edge.count
+        let total: Double = root.children.values.reduce(0.0, { partial, child in
+            if child.node.isBoundaryOrRoot { return partial }
+            if excludedItems.contains(child.node) { return partial }
+            return partial + child.count
         })
         
-        return root.children.values.flatMap { edge in
+        return root.children.values.flatMap { child in
             
-            if edge.node.isBoundaryOrRoot { return nil }
-            if excludedItems.contains(edge.node) { return nil }
+            if child.node.isBoundaryOrRoot { return nil }
+            if excludedItems.contains(child.node) { return nil }
             
-            let prob = Double(edge.count) / Double(total)
-            return (item: edge.node, probability: prob)
+            let prob = child.count / total
+            return (item: child.node, probability: prob)
         }
     }
 }
@@ -54,7 +54,7 @@ public struct NodeEdges<Item: Hashable> {
     internal typealias ItemProbability = (probability: Double, item: Node<Item>)
     
     internal let node: Node<Item>
-    internal var count: Int = 0
+    internal var count: Double = 0
     internal var children: Children = [:]
     internal var id: String = UUID().uuidString
     
@@ -64,10 +64,14 @@ public struct NodeEdges<Item: Hashable> {
         self.node = node
     }
     
-    init(node: Node<Item>, count: Int, children: Children) {
+    init(node: Node<Item>, count: Double, children: Children) {
         self.node = node
         self.count = count
         self.children = children
+    }
+    
+    internal var childIds: [String] {
+        return children.values.map({ $0.id })
     }
     
     mutating func incrementCount(for sequence: Nodes) {
@@ -93,22 +97,21 @@ public struct NodeEdges<Item: Hashable> {
                 return child.itemProbabilities(after: tail)
             }
         }
+            
+            
+            
+            
+            
         else { // tail is empty
-            let total: Int = children.values.reduce(0, { partial, sequence in
-                return partial + sequence.count
+            let total: Double = children.values.reduce(0.0, { partial, child in
+                return partial + child.count
             })
             
             return children.values.map({ child in
-                let prob = Double(child.count) / Double(total)
+                let prob = child.count / total
                 return (probability: prob, item: child.node)
             })
         }
         return []
-    }
-    
-    
-    
-    internal var childIds: [String] {
-        return children.values.map({ $0.id })
     }
 }

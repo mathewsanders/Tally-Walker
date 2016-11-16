@@ -12,7 +12,16 @@ import CoreData
 class CoreDataStack {
     
     lazy var persistentContainer: NSPersistentContainer = {
-        let container = NSPersistentContainer(name: "TallyStoreModel")
+        
+        guard let bundle = Bundle(identifier: "com.mathewsanders.Tally"),
+            let modelUrl = bundle.url(forResource: "TallyStoreModel", withExtension: "momd"),
+            let mom = NSManagedObjectModel(contentsOf: modelUrl)
+        else {
+            fatalError("Unresolved error")
+        }
+        
+        let container = NSPersistentContainer(name: "TallyStoreModel", managedObjectModel: mom)
+        
         container.loadPersistentStores(completionHandler: { (storeDescription, error) in
             if let error = error {
                 fatalError("Unresolved error \(error)")
@@ -27,9 +36,9 @@ class CoreDataStack {
         if context.hasChanges {
             do {
                 try context.save()
-            } catch _ {
-                fatalError("Unresolved error")
-            }
+            } catch let error as NSError {
+                fatalError("Unresolved error \(error.description)")
+            }      
         }
     } 
 }

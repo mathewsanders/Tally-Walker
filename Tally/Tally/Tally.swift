@@ -240,6 +240,8 @@ public struct Tally<Item: Hashable> {
         }
         let tail = nodes.clamped(by: ngram.size-1)
         
+        print("getting probabilities following", tail)
+        
         return store.itemProbabilities(after: tail)
         //return root.itemProbabilities(after: [root.node]+tail)
     }

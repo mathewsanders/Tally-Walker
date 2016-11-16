@@ -1,21 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="11232" systemVersion="15G31" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
-    <entity name="CoreDataNode" representedClassName="CoreDataNode" syncable="YES">
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="11542" systemVersion="16B2657" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="CoreDataNode" representedClassName="CoreDataNode" syncable="YES" codeGenerationType="class">
         <attribute name="count" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
-        <attribute name="id" attributeType="String" syncable="YES"/>
+        <attribute name="id" optional="YES" attributeType="String" syncable="YES"/>
         <attribute name="nodeDictionaryRepresentation" attributeType="Transformable" customClassName="NSDictionary" syncable="YES"/>
         <relationship name="children" toMany="YES" deletionRule="Nullify" destinationEntity="CoreDataNode" inverseName="parent" inverseEntity="CoreDataNode" syncable="YES"/>
         <relationship name="parent" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CoreDataNode" inverseName="children" inverseEntity="CoreDataNode" syncable="YES"/>
-        <compoundIndexes>
-            <compoundIndex>
-                <index value="id"/>
-            </compoundIndex>
-        </compoundIndexes>
-        <uniquenessConstraints>
-            <uniquenessConstraint>
-                <constraint value="id"/>
-            </uniquenessConstraint>
-        </uniquenessConstraints>
     </entity>
     <elements>
         <element name="CoreDataNode" positionX="-63" positionY="-18" width="128" height="120"/>
