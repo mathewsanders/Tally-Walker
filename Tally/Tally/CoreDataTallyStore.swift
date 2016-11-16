@@ -78,7 +78,8 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
     }
     
     public var childNodes: [CoreDataNodeWrapper<Item>]{
-        return Array(_node.childrenSet.map{ return CoreDataNodeWrapper(node: $0, in: context) })
+        guard let childrenSet = _node.children as? Set<CoreDataNode> else { return [] }
+        return Array(childrenSet.map{ return CoreDataNodeWrapper(node: $0, in: context) })
     }
     
     public func childNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item> {
@@ -92,18 +93,9 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
 
 fileprivate extension CoreDataNode {
     
-    var childrenSet: Set<CoreDataNode> {
-        return (children as? Set<CoreDataNode> ?? Set<CoreDataNode>())
-    }
-    
     convenience init<Item: LosslessDictionaryConvertible>(node: Node<Item>, in context: NSManagedObjectContext) {
-        
         self.init(context: context)
-        self.id = UUID().uuidString // TODO: Remove id from model
         self.nodeDictionaryRepresentation = node.dictionaryRepresentation()
-        
-        self.count = 0.0
-        self.children = NSSet() // TODO: Check to see if children can be set as nil
     }
 }
 
