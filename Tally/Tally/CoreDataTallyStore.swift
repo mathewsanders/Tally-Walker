@@ -11,11 +11,16 @@ import CoreData
 
 class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item: LosslessDictionaryConvertible {
         
-    var stack = CoreDataStack()
+    private var stack: CoreDataStack
     private var root: CoreDataNodeWrapper<Item>
     
-    init() {
+    init(inMemory: Bool = false) {
+        self.stack = CoreDataStack(inMemory)
         self.root = CoreDataNodeWrapper(in: stack.persistentContainer.viewContext)
+    }
+    
+    func save() {
+        stack.saveContext()
     }
     
     deinit {
@@ -103,7 +108,9 @@ fileprivate extension CoreDataNode {
 
 internal class CoreDataStack {
     
-    lazy var persistentContainer: NSPersistentContainer = {
+    var persistentContainer: NSPersistentContainer
+    
+    init(_ inMemory: Bool = false) {
         
         // Bundle(identifier: "com.mathewsanders.Tally")
         let bundle = Bundle(for: CoreDataStack.self) // check this works as expected in a module
@@ -114,13 +121,19 @@ internal class CoreDataStack {
             let mom = NSManagedObjectModel(contentsOf: modelUrl)
             else { fatalError("Unresolved error") }
         
-        let container = NSPersistentContainer(name: "TallyStoreModel", managedObjectModel: mom)
+        persistentContainer = NSPersistentContainer(name: "TallyStoreModel", managedObjectModel: mom)
         
-        container.loadPersistentStores{ (storeDescription, error) in
+        if inMemory {
+            print("Warning: Core Data using NSInMemoryStoreType, changes will not persist, use for testing only")
+            let description = NSPersistentStoreDescription()
+            description.type = NSInMemoryStoreType
+            persistentContainer.persistentStoreDescriptions = [description]
+        }
+        
+        persistentContainer.loadPersistentStores{ (storeDescription, error) in
             if let error = error { fatalError("Unresolved error \(error)") } // TODO: Manage error
         }
-        return container
-    }()
+    }
     
     func saveContext() {
         let context = persistentContainer.viewContext

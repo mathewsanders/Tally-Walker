@@ -11,7 +11,7 @@
 		4019ED921DDB87FF00B4114A /* TallyStoreModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 4019ED901DDB87FF00B4114A /* TallyStoreModel.xcdatamodeld */; };
 		401C98671DDA6958006AB605 /* TallyStoreType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 401C98661DDA6958006AB605 /* TallyStoreType.swift */; };
 		40A15FC11DDBA5CA00E2CED0 /* MemoryTallyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40A15FC01DDBA5CA00E2CED0 /* MemoryTallyStore.swift */; };
-		40FA5E991DDBBBC6009FC865 /* CoreDataStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40FA5E981DDBBBC6009FC865 /* CoreDataStoreTests.swift */; };
+		40FA5E991DDBBBC6009FC865 /* TallyTestsCoreDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40FA5E981DDBBBC6009FC865 /* TallyTestsCoreDataStore.swift */; };
 		AFAB26E61DC01C4600176ACE /* new-yorker-captions.txt in Resources */ = {isa = PBXBuildFile; fileRef = AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */; };
 		AFDBD8E51DBEEFD7009B5FA8 /* Tally.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AFDBD8DB1DBEEFD7009B5FA8 /* Tally.framework */; };
 		AFDBD8EA1DBEEFD7009B5FA8 /* TallyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFDBD8E91DBEEFD7009B5FA8 /* TallyTests.swift */; };
@@ -35,7 +35,7 @@
 		4019ED911DDB87FF00B4114A /* TallyStoreModel.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = TallyStoreModel.xcdatamodel; sourceTree = "<group>"; };
 		401C98661DDA6958006AB605 /* TallyStoreType.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TallyStoreType.swift; sourceTree = "<group>"; };
 		40A15FC01DDBA5CA00E2CED0 /* MemoryTallyStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MemoryTallyStore.swift; sourceTree = "<group>"; };
-		40FA5E981DDBBBC6009FC865 /* CoreDataStoreTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CoreDataStoreTests.swift; sourceTree = "<group>"; };
+		40FA5E981DDBBBC6009FC865 /* TallyTestsCoreDataStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TallyTestsCoreDataStore.swift; sourceTree = "<group>"; };
 		AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "new-yorker-captions.txt"; sourceTree = "<group>"; };
 		AFDBD8DB1DBEEFD7009B5FA8 /* Tally.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Tally.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AFDBD8DE1DBEEFD7009B5FA8 /* Tally.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Tally.h; sourceTree = "<group>"; };
@@ -119,7 +119,7 @@
 			isa = PBXGroup;
 			children = (
 				AFDBD8E91DBEEFD7009B5FA8 /* TallyTests.swift */,
-				40FA5E981DDBBBC6009FC865 /* CoreDataStoreTests.swift */,
+				40FA5E981DDBBBC6009FC865 /* TallyTestsCoreDataStore.swift */,
 				AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */,
 				AFDBD8EB1DBEEFD7009B5FA8 /* Info.plist */,
 			);
@@ -251,7 +251,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				40FA5E991DDBBBC6009FC865 /* CoreDataStoreTests.swift in Sources */,
+				40FA5E991DDBBBC6009FC865 /* TallyTestsCoreDataStore.swift in Sources */,
 				AFDBD8EA1DBEEFD7009B5FA8 /* TallyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
