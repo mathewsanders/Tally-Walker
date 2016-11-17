@@ -32,7 +32,7 @@ public class AnyTallyStore<Item> where Item: Hashable {
     private let _itemProbabilities: (Nodes) -> [ItemProbability]
     private let _distributions: (Nodes) -> [ItemProbability]
     
-    init<Store>(_ store: Store) where Store: TallyStoreType, Store.Item == Item {
+    public init<Store>(_ store: Store) where Store: TallyStoreType, Store.Item == Item {
         _incrementCount = store.incrementCount
         _itemProbabilities = store.itemProbabilities
         _distributions = store.distributions

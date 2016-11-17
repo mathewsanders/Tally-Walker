@@ -9,17 +9,17 @@
 import Foundation
 import CoreData
 
-class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item: LosslessDictionaryConvertible {
+public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item: LosslessDictionaryConvertible {
         
     private var stack: CoreDataStack
     private var root: CoreDataNodeWrapper<Item>
     
-    init(inMemory: Bool = false) {
+    public init(inMemory: Bool = false) {
         self.stack = CoreDataStack(inMemory)
         self.root = CoreDataNodeWrapper(in: stack.persistentContainer.viewContext)
     }
     
-    func save() {
+    public func save() {
         stack.saveContext()
     }
     
@@ -37,7 +37,7 @@ class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item: Lossl
         return root.itemProbabilities(after: [Node<Item>.root] + sequence)
     }
     
-    func distributions(excluding excludedItems: [Node<Item>]) -> [(probability: Double, item: Node<Item>)] {
+    public func distributions(excluding excludedItems: [Node<Item>]) -> [(probability: Double, item: Node<Item>)] {
         return root.distributions(excluding: excludedItems)
     }
 }
@@ -148,23 +148,23 @@ internal class CoreDataStack {
 // MARK: - LosslessDictionaryConvertible & Node extension
 
 /// A representation of a Type with internal property keys and values mapped to a NSDictionary that can be used in store
-protocol LosslessDictionaryConvertible {
+public protocol LosslessDictionaryConvertible {
     init?(dictionaryRepresentation: NSDictionary)
     func dictionaryRepresentation() -> NSDictionary
 }
 
-protocol LosslessTextConvertible: LosslessDictionaryConvertible {
+public protocol LosslessTextConvertible: LosslessDictionaryConvertible {
     init?(_ text: String)
 }
 
-extension LosslessDictionaryConvertible {
+public extension LosslessDictionaryConvertible {
     public static var losslessDictionaryKey: String {
         let type = type(of: self)
         return "\(type)"
     }
 }
 
-extension LosslessTextConvertible {
+public extension LosslessTextConvertible {
     
     init?(dictionaryRepresentation: NSDictionary) {
         guard let value = dictionaryRepresentation[Self.losslessDictionaryKey] as? Self else {

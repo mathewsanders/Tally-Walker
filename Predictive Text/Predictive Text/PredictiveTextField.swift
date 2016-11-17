@@ -9,10 +9,14 @@
 import UIKit
 import Tally
 
+extension String: LosslessTextConvertible {}
+
 class PredictiveTextField: UITextField {
     
     let seperatorCharacters = CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters)
-    var model: Tally<String> = Tally(representing: TallySequenceType.continuousSequence, ngram: .trigram)
+    
+    var store: CoreDataTallyStore<String>
+    var model: Tally<String>
     
     private lazy var contextualInputAccessoryView: InputAccessoryView = { [unowned self] in
         let inputAccessory = InputAccessoryView(withTarget: self)
@@ -28,6 +32,12 @@ class PredictiveTextField: UITextField {
     }
     
     required init?(coder aDecoder: NSCoder) {
+        
+        // set up model and store
+        store = CoreDataTallyStore<String>()
+        model = Tally(representing: TallySequenceType.continuousSequence, ngram: .trigram)
+        model.store = AnyTallyStore(store)
+        
         super.init(coder: aDecoder)
         
         // set up default keyboard
@@ -42,7 +52,10 @@ class PredictiveTextField: UITextField {
         // set up input accessory
         inputAccessoryView = contextualInputAccessoryView
         contextualInputAccessoryView.updateSuggestions()
-        
+    }
+    
+    deinit {
+        store.save()
     }
     
     func learn(example: String) {
