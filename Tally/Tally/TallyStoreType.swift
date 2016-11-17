@@ -67,8 +67,11 @@ public protocol TallyStoreNodeType {
     // add a child
     func addChild(_: Self)
     
-    // return an existing child node matching an item, or create a new child node with that item
-    func childNode(with item: Node<Item>) -> Self
+    // return an existing child node matching an item
+    func findChildNode(with item: Node<Item>) -> Self?
+
+    // create a new node to be used as child
+    func makeChildNode(with item: Node<Item>) -> Self
     
 }
 
@@ -81,7 +84,7 @@ extension TallyStoreNodeType  {
         let (_, tail) = sequence.headAndTail()
         
         if let item = tail.first {
-            var child = childNode(with: item)
+            var child = findChildNode(with: item) ?? makeChildNode(with: item)
             child.incrementCount(for: tail)
             addChild(child)
         }
@@ -96,8 +99,10 @@ extension TallyStoreNodeType  {
         
         if let item = tail.first {
             
-            let child = childNode(with: item)
-            return child.itemProbabilities(after: tail)
+            if let child = findChildNode(with: item) {
+                return child.itemProbabilities(after: tail)
+            }
+            else { return [] }
         }
             
         else { // tail is empty

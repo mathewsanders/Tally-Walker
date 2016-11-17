@@ -16,7 +16,7 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     
     public init(inMemory: Bool = false) {
         self.stack = CoreDataStack(inMemory)
-        self.root = CoreDataNodeWrapper(in: stack.persistentContainer.viewContext)
+        self.root = stack.getRoot()
     }
     
     public func save() {
@@ -46,7 +46,7 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
 
 fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Hashable, Item: LosslessDictionaryConvertible {
     
-    private var _node: CoreDataNode
+    fileprivate var _node: CoreDataNode
     private var context: NSManagedObjectContext
     
     init(in context: NSManagedObjectContext) {
@@ -86,11 +86,15 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
         guard let childrenSet = _node.children as? Set<CoreDataNode> else { return [] }
         return Array(childrenSet.map{ return CoreDataNodeWrapper(node: $0, in: context) })
     }
-    
-    public func childNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item> {
+        
+    public func findChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item>? {
         return childNodes.first(where: { wrapper in
             return wrapper.node == item
-        }) ?? CoreDataNodeWrapper(item: item, in: context)
+        })
+    }
+    
+    public func makeChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item> {
+        return CoreDataNodeWrapper(item: item, in: context)
     }
 }
 
@@ -110,9 +114,13 @@ internal class CoreDataStack {
     
     var persistentContainer: NSPersistentContainer
     
+    var context: NSManagedObjectContext {
+        return persistentContainer.viewContext
+    }
+    
     init(_ inMemory: Bool = false) {
         
-        // Bundle(identifier: "com.mathewsanders.Tally")
+        //let bundle = Bundle(identifier: "com.mathewsanders.Tally")!
         let bundle = Bundle(for: CoreDataStack.self) // check this works as expected in a module
         
         // TODO: Investigate option for creating model in code rather than as a resource
@@ -121,6 +129,7 @@ internal class CoreDataStack {
             let mom = NSManagedObjectModel(contentsOf: modelUrl)
             else { fatalError("Unresolved error") }
         
+        //persistentContainer = NSPersistentContainer(name: "TallyStoreModel")
         persistentContainer = NSPersistentContainer(name: "TallyStoreModel", managedObjectModel: mom)
         
         if inMemory {
@@ -131,7 +140,42 @@ internal class CoreDataStack {
         }
         
         persistentContainer.loadPersistentStores{ (storeDescription, error) in
+            print(storeDescription)
             if let error = error { fatalError("Unresolved error \(error)") } // TODO: Manage error
+        }
+    }
+    
+    enum RootLoadError: Error {
+        case noRootUri
+        case castError
+    }
+    
+    static let rootUriKey = "Tally.Root.Uri" // TODO: Need to update key so that multiple keys can be stored in the same bundle
+    
+    private func loadRootFromUserDefaults<Item>() throws -> CoreDataNodeWrapper<Item> where Item: Hashable, Item: LosslessDictionaryConvertible {
+        
+        guard let uri = UserDefaults.standard.url(forKey: CoreDataStack.rootUriKey),
+            let moid = context.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: uri)
+            else { throw RootLoadError.noRootUri }
+        
+        guard let rootItem = try context.existingObject(with: moid) as? CoreDataNode
+            else { throw RootLoadError.castError }
+        
+        return CoreDataNodeWrapper<Item>(node: rootItem, in: context)
+    }
+    
+    fileprivate func getRoot<Item>() -> CoreDataNodeWrapper<Item> where Item: Hashable, Item: LosslessDictionaryConvertible {
+        
+        do { // load from root.uri
+            let existingRoot: CoreDataNodeWrapper<Item> = try loadRootFromUserDefaults()
+            return existingRoot
+        }
+        catch { // couldn't find root, so will create a new one
+            let newRoot = CoreDataNodeWrapper<Item>(in: context)
+            saveContext() // so that objectID is stable
+            UserDefaults.standard.set(newRoot._node.objectID.uriRepresentation(), forKey: CoreDataStack.rootUriKey)
+            
+            return newRoot
         }
     }
     
@@ -141,6 +185,9 @@ internal class CoreDataStack {
             do {
                 try context.save()
             } catch let error as NSError { fatalError("Unresolved error \(error.description)") } // TODO: Manage error
+        }
+        else {
+            print("no changes to save")
         }
     }
 }

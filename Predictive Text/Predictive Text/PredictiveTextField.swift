@@ -46,8 +46,8 @@ class PredictiveTextField: UITextField {
         spellCheckingType = .no
         
         // train model with some examples
-        model.observe(sequence: "the cat in the hat sat on the mat".components(separatedBy: seperatorCharacters))
-        model.observe(sequence: "the quick brown fox jumped over the fence".components(separatedBy: seperatorCharacters))
+        //model.observe(sequence: "the cat in the hat sat on the mat".components(separatedBy: seperatorCharacters))
+        //model.observe(sequence: "the quick brown fox jumped over the fence".components(separatedBy: seperatorCharacters))
         
         // set up input accessory
         inputAccessoryView = contextualInputAccessoryView
@@ -61,6 +61,7 @@ class PredictiveTextField: UITextField {
     func learn(example: String) {
         let sequence = example.trimmingCharacters(in: seperatorCharacters).components(separatedBy: seperatorCharacters)
         model.observe(sequence: sequence)
+        store.save()
     }
     
     func updateSuggestions() {

@@ -53,7 +53,11 @@ fileprivate final class MemoryNode<Item>: TallyStoreNodeType where Item: Hashabl
         return Array(children.values)
     }
     
-    public func childNode(with item: Node<Item>) -> MemoryNode<Item> {
-        return children[item] ?? MemoryNode<Item>(withItem: item)
+    public func findChildNode(with item: Node<Item>) -> MemoryNode<Item>? {
+        return children[item]
+    }
+    
+    public func makeChildNode(with item: Node<Item>) -> MemoryNode<Item> {
+        return MemoryNode<Item>(withItem: item)
     }
 }
