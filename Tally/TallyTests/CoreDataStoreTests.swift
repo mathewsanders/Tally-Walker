@@ -33,19 +33,4 @@ class CoreDataStoreTests: XCTestCase {
     }
 }
 
-extension String: LosslessDictionaryConvertible {
-    
-    static let dictionaryRepresentationKey = "String.self"
-    
-    public init?(dictionaryRepresentation dictionary: NSDictionary) {
-        //guard let dictionary = dictionaryRepresentation,
-        guard let value = dictionary[String.dictionaryRepresentationKey] as? String
-            else { return nil }
-        self = value
-    }
-    
-    public func dictionaryRepresentation() -> NSDictionary {
-        let representation = [String.dictionaryRepresentationKey: self]
-        return representation as NSDictionary
-    }
-}
+extension String: LosslessTextConvertible {}

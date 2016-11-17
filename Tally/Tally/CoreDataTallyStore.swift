@@ -140,6 +140,32 @@ protocol LosslessDictionaryConvertible {
     func dictionaryRepresentation() -> NSDictionary
 }
 
+protocol LosslessTextConvertible: LosslessDictionaryConvertible {
+    init?(_ text: String)
+}
+
+extension LosslessDictionaryConvertible {
+    public static var losslessDictionaryKey: String {
+        let type = type(of: self)
+        return "\(type)"
+    }
+}
+
+extension LosslessTextConvertible {
+    
+    init?(dictionaryRepresentation: NSDictionary) {
+        guard let value = dictionaryRepresentation[Self.losslessDictionaryKey] as? Self else {
+            return nil
+        }
+        self = value
+    }
+    
+    func dictionaryRepresentation() -> NSDictionary {
+        let dict = [Self.losslessDictionaryKey: self]
+        return dict as NSDictionary
+    }
+}
+
 fileprivate enum NodeKey: String {
     case boundary = "Node.Boundary"
     case item = "Note.Item"
