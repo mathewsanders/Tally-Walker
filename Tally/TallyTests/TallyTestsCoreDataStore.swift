@@ -7,7 +7,7 @@
 //
 
 import XCTest
-@testable import Tally
+import Tally
 
 class TallyTestsCoreDataStore: XCTestCase {
     

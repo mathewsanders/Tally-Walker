@@ -32,12 +32,12 @@ public enum TallySequenceType: Int {
     case discreteSequence
     
     /// Returns true if this model represents continuous sequences
-    var isContinuous: Bool {
+    public var isContinuous: Bool {
         return self == .continuousSequence
     }
     
     /// Returns true if this model represents discrete sequences
-    var isDiscrete: Bool {
+    public var isDiscrete: Bool {
         return self == .discreteSequence
     }
 }
