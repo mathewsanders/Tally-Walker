@@ -34,7 +34,7 @@ class PredictiveTextField: UITextField {
     required init?(coder aDecoder: NSCoder) {
         
         // set up model and store
-        store = CoreDataTallyStore<String>()
+        store = CoreDataTallyStore<String>(named: "PredictiveTextModelStore")
         model = Tally(representing: TallySequenceType.continuousSequence, ngram: .trigram)
         model.store = AnyTallyStore(store)
         

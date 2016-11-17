@@ -14,9 +14,14 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     private var stack: CoreDataStack
     private var root: CoreDataNodeWrapper<Item>
     
-    public init(inMemory: Bool = false) {
-        self.stack = CoreDataStack(inMemory)
-        self.root = stack.getRoot()
+    static func stackIdentifier(named name: String) -> String {
+        return "Tally.CoreDataStore." + name
+    }
+    
+    public init(named name: String = "DefaultStore", inMemory: Bool = false) {
+        let identifier = CoreDataTallyStore.stackIdentifier(named: name)
+        self.stack = CoreDataStack(identifier: identifier, inMemory)
+        self.root = stack.getRoot(with: identifier)
     }
     
     public func save() {
@@ -118,9 +123,8 @@ internal class CoreDataStack {
         return persistentContainer.viewContext
     }
     
-    init(_ inMemory: Bool = false) {
+    init(identifier containerName: String, _ inMemory: Bool = false) {
         
-        //let bundle = Bundle(identifier: "com.mathewsanders.Tally")!
         let bundle = Bundle(for: CoreDataStack.self) // check this works as expected in a module
         
         // TODO: Investigate option for creating model in code rather than as a resource
@@ -129,8 +133,7 @@ internal class CoreDataStack {
             let mom = NSManagedObjectModel(contentsOf: modelUrl)
             else { fatalError("Unresolved error") }
         
-        //persistentContainer = NSPersistentContainer(name: "TallyStoreModel")
-        persistentContainer = NSPersistentContainer(name: "TallyStoreModel", managedObjectModel: mom)
+        persistentContainer = NSPersistentContainer(name: containerName, managedObjectModel: mom)
         
         if inMemory {
             print("Warning: Core Data using NSInMemoryStoreType, changes will not persist, use for testing only")
@@ -150,11 +153,13 @@ internal class CoreDataStack {
         case castError
     }
     
-    static let rootUriKey = "Tally.Root.Uri" // TODO: Need to update key so that multiple keys can be stored in the same bundle
+    func rootNodeKey(with identifier: String) -> String {
+        return "Tally.Root.Uri." + identifier
+    }
     
-    private func loadRootFromUserDefaults<Item>() throws -> CoreDataNodeWrapper<Item> where Item: Hashable, Item: LosslessDictionaryConvertible {
+    private func loadRootFromUserDefaults<Item>(withKey key: String) throws -> CoreDataNodeWrapper<Item> where Item: Hashable, Item: LosslessDictionaryConvertible {
         
-        guard let uri = UserDefaults.standard.url(forKey: CoreDataStack.rootUriKey),
+        guard let uri = UserDefaults.standard.url(forKey: key),
             let moid = context.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: uri)
             else { throw RootLoadError.noRootUri }
         
@@ -164,17 +169,18 @@ internal class CoreDataStack {
         return CoreDataNodeWrapper<Item>(node: rootItem, in: context)
     }
     
-    fileprivate func getRoot<Item>() -> CoreDataNodeWrapper<Item> where Item: Hashable, Item: LosslessDictionaryConvertible {
+    fileprivate func getRoot<Item>(with identifier: String) -> CoreDataNodeWrapper<Item> where Item: Hashable, Item: LosslessDictionaryConvertible {
+        
+        let rootNodeKey = self.rootNodeKey(with: identifier)
         
         do { // load from root.uri
-            let existingRoot: CoreDataNodeWrapper<Item> = try loadRootFromUserDefaults()
+            let existingRoot: CoreDataNodeWrapper<Item> = try loadRootFromUserDefaults(withKey: rootNodeKey)
             return existingRoot
         }
         catch { // couldn't find root, so will create a new one
             let newRoot = CoreDataNodeWrapper<Item>(in: context)
             saveContext() // so that objectID is stable
-            UserDefaults.standard.set(newRoot._node.objectID.uriRepresentation(), forKey: CoreDataStack.rootUriKey)
-            
+            UserDefaults.standard.set(newRoot._node.objectID.uriRepresentation(), forKey: rootNodeKey)
             return newRoot
         }
     }
@@ -228,7 +234,7 @@ public extension LosslessTextConvertible {
 
 fileprivate enum NodeKey: String {
     case boundary = "Node.Boundary"
-    case item = "Note.Item"
+    case item = "Node.Item"
     case root = "Node.Root"
     
     var dictionaryKey: String {
