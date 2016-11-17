@@ -11,6 +11,7 @@ import XCTest
 
 class TallyTestsCoreDataStore: XCTestCase {
     
+    /// Create a two models, both backed by the same Core Data store
     func testStore() {
         
         // create a core data store, with an in-memory option (used for testing)
@@ -37,6 +38,34 @@ class TallyTestsCoreDataStore: XCTestCase {
         XCTAssertTrue(newModelItemProbabilitiesAfterHello.count == 2, "Unexpected number of probabilities")
         XCTAssertTrue(newModelItemProbabilitiesAfterHello[0].probability == 0.5, "Unexpected probability")
     }
+    
+    /// Create two core data models, distinguished by different names, that operate independently of each other
+    func testNamedStores() {
+        
+        let birdStore = CoreDataTallyStore<String>(named: "Birds", inMemory: true)
+        var birdModel = Tally<String>()
+        birdModel.store = AnyTallyStore(birdStore)
+        birdModel.observe(sequence: ["tweet", "tweet"])
+        
+        let carStore = CoreDataTallyStore<String>(named: "Cars", inMemory: true)
+        var carModel = Tally<String>()
+        carModel.store = AnyTallyStore(carStore)
+        carModel.observe(sequence: ["honk", "honk"])
+        
+        let birdModelItemProbabilitiesAfterTweet = birdModel.itemProbabilities(after: "tweet")
+        let carModelItemProbabilitiesAfterHonk = carModel.itemProbabilities(after: "honk")
+        
+        // expect: [(0.5, "tweet"), (0.5, unseenTrailingItems)]
+        XCTAssertTrue(birdModelItemProbabilitiesAfterTweet.count == 2, "Unexpected number of probabilities")
+        XCTAssertTrue(birdModelItemProbabilitiesAfterTweet[0].probability == 0.5, "Unexpected probability")
+        
+        // expect: [(0.5, "honk"), (0.5, unseenTrailingItems)]
+        XCTAssertTrue(carModelItemProbabilitiesAfterHonk.count == 2, "Unexpected number of probabilities")
+        XCTAssertTrue(carModelItemProbabilitiesAfterHonk[0].probability == 0.5, "Unexpected probability")
+        
+    }
+    
+    
 }
 
 // Type needs to implement either LosslessTextConvertible, or LosslessDictionaryConvertible to be 
