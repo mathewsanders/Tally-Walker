@@ -83,10 +83,6 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
         set { _node.count = newValue }
     }
     
-    public func addChild(_ child: CoreDataNodeWrapper<Item>) {
-        _node.addToChildren(child._node)
-    }
-    
     public var childNodes: [CoreDataNodeWrapper<Item>]{
         guard let childrenSet = _node.children as? Set<CoreDataNode> else { return [] }
         return Array(childrenSet.map{ return CoreDataNodeWrapper(node: $0, in: context) })
@@ -99,7 +95,9 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
     }
     
     public func makeChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item> {
-        return CoreDataNodeWrapper(item: item, in: context)
+        let child = CoreDataNodeWrapper(item: item, in: context)
+        _node.addToChildren(child._node)        
+        return child
     }
 }
 

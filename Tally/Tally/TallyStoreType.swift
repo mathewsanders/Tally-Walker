@@ -64,9 +64,6 @@ public protocol TallyStoreNodeType {
     // get child nodes
     var childNodes: [Self] { get }
     
-    // add a child
-    func addChild(_: Self)
-    
     // return an existing child node matching an item
     func findChildNode(with item: Node<Item>) -> Self?
 
@@ -86,7 +83,6 @@ extension TallyStoreNodeType  {
         if let item = tail.first {
             var child = findChildNode(with: item) ?? makeChildNode(with: item)
             child.incrementCount(for: tail)
-            addChild(child)
         }
         else {
             count += 1
