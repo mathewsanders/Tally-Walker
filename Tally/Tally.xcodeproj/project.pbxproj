@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		400D19181DDFBA4100A76182 /* ABC.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = 400D19171DDFBA4100A76182 /* ABC.sqlite */; };
 		4019ED8E1DDB67A800B4114A /* CoreDataTallyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4019ED8D1DDB67A800B4114A /* CoreDataTallyStore.swift */; };
 		4019ED921DDB87FF00B4114A /* TallyStoreModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 4019ED901DDB87FF00B4114A /* TallyStoreModel.xcdatamodeld */; };
 		401C98671DDA6958006AB605 /* TallyStoreType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 401C98661DDA6958006AB605 /* TallyStoreType.swift */; };
@@ -31,6 +32,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		400D19171DDFBA4100A76182 /* ABC.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = ABC.sqlite; sourceTree = "<group>"; };
 		4019ED8D1DDB67A800B4114A /* CoreDataTallyStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CoreDataTallyStore.swift; sourceTree = "<group>"; };
 		4019ED911DDB87FF00B4114A /* TallyStoreModel.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = TallyStoreModel.xcdatamodel; sourceTree = "<group>"; };
 		401C98661DDA6958006AB605 /* TallyStoreType.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TallyStoreType.swift; sourceTree = "<group>"; };
@@ -118,6 +120,7 @@
 		AFDBD8E81DBEEFD7009B5FA8 /* TallyTests */ = {
 			isa = PBXGroup;
 			children = (
+				400D19171DDFBA4100A76182 /* ABC.sqlite */,
 				AFDBD8E91DBEEFD7009B5FA8 /* TallyTests.swift */,
 				40FA5E981DDBBBC6009FC865 /* TallyTestsCoreDataStore.swift */,
 				AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */,
@@ -227,6 +230,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				400D19181DDFBA4100A76182 /* ABC.sqlite in Resources */,
 				AFAB26E61DC01C4600176ACE /* new-yorker-captions.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

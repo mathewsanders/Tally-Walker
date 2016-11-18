@@ -18,9 +18,9 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
         return "Tally.CoreDataStore." + name
     }
     
-    public init(named name: String = "DefaultStore", inMemory: Bool = false) {
+    public init(named name: String = "DefaultStore", storeUrl: URL? = nil, inMemory: Bool = false) {
         let identifier = CoreDataTallyStore.stackIdentifier(named: name)
-        self.stack = CoreDataStack(identifier: identifier, inMemory)
+        self.stack = CoreDataStack(identifier: identifier, storeUrl: storeUrl, inMemory: inMemory)
         self.root = stack.getRoot(with: identifier)
     }
     
@@ -121,7 +121,7 @@ internal class CoreDataStack {
         return persistentContainer.viewContext
     }
     
-    init(identifier containerName: String, _ inMemory: Bool = false) {
+    init(identifier containerName: String, storeUrl: URL? = nil, inMemory: Bool = false) {
         
         let bundle = Bundle(for: CoreDataStack.self) // check this works as expected in a module
         
@@ -137,6 +137,13 @@ internal class CoreDataStack {
             print("Warning: Core Data using NSInMemoryStoreType, changes will not persist, use for testing only")
             let description = NSPersistentStoreDescription()
             description.type = NSInMemoryStoreType
+            persistentContainer.persistentStoreDescriptions = [description]
+        }
+        
+        if let storeUrl = storeUrl {
+            // TODO: Should validate if the resource at the URL is a sqlite resource
+            // and that it has an approrpiate model
+            let description = NSPersistentStoreDescription(url: storeUrl)
             persistentContainer.persistentStoreDescriptions = [description]
         }
         

@@ -65,6 +65,26 @@ class TallyTestsCoreDataStore: XCTestCase {
         
     }
     
+    func testLoadFromExistingStore() {
+        
+        guard let storeUrl = Bundle(for: TallyTestsCoreDataStore.self).url(forResource: "ABC", withExtension: "sqlite") else {
+            XCTFail("sqlite does not exist")
+            return
+        }
+        
+        // TODO: Investigate if there are constraints or expectations on the name of the store when loading from an existing store.
+        let store = CoreDataTallyStore<String>(named: "ABC", storeUrl: storeUrl)
+        var model = Tally<String>()
+        model.store = AnyTallyStore(store)
+        
+        // model is previously build by observing sequence ["a", "b", "c", "d"]
+        
+        let probabilities = model.itemProbabilities(after: "a")
+        dump(probabilities)
+        XCTAssertTrue(probabilities.count == 1, "Unexpected number of probabilities")
+        XCTAssertTrue(probabilities[0].probability == 1, "Unexpected probability")
+        
+    }
     
 }
 
