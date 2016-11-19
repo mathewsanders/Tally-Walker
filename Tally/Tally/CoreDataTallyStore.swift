@@ -18,10 +18,10 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
         return "Tally.CoreDataStore." + name
     }
     
-    public init(named name: String = "DefaultStore", storeUrl: URL? = nil, inMemory: Bool = false) {
+    public init(named name: String = "DefaultStore", restoreFrom existingStore: URL? = nil, inMemory: Bool = false) {
         let identifier = CoreDataTallyStore.stackIdentifier(named: name)
-        self.stack = CoreDataStack(identifier: identifier, storeUrl: storeUrl, inMemory: inMemory)
-        self.root = stack.getRoot(with: identifier)
+        self.stack = CoreDataStack(identifier: identifier, existingStore: existingStore, inMemory: inMemory)
+        self.root = stack.getRoot()
     }
     
     public func save() {
@@ -115,13 +115,13 @@ fileprivate extension CoreDataNode {
 
 internal class CoreDataStack {
     
-    var persistentContainer: NSPersistentContainer
+    let persistentContainer: NSPersistentContainer
     
     var context: NSManagedObjectContext {
         return persistentContainer.viewContext
     }
     
-    init(identifier containerName: String, storeUrl: URL? = nil, inMemory: Bool = false) {
+    init(identifier containerName: String, existingStore storeUrl: URL? = nil, inMemory: Bool = false) {
         
         let bundle = Bundle(for: CoreDataStack.self) // check this works as expected in a module
         
@@ -143,7 +143,8 @@ internal class CoreDataStack {
         if let storeUrl = storeUrl {
             // TODO: Should validate if the resource at the URL is a sqlite resource
             // and that it has an approrpiate model
-            let description = NSPersistentStoreDescription(url: storeUrl)
+            let description = NSPersistentStoreDescription()
+            description.url = storeUrl
             persistentContainer.persistentStoreDescriptions = [description]
         }
         
@@ -153,41 +154,22 @@ internal class CoreDataStack {
         }
     }
     
-    enum RootLoadError: Error {
-        case noRootUri
-        case castError
-    }
-    
-    func rootNodeKey(with identifier: String) -> String {
-        return "Tally.Root.Uri." + identifier
-    }
-    
-    private func loadRootFromUserDefaults<Item>(withKey key: String) throws -> CoreDataNodeWrapper<Item> where Item: Hashable, Item: LosslessDictionaryConvertible {
+    private func fetchExistingRoot<Item>() -> CoreDataNodeWrapper<Item>? where Item: Hashable, Item: LosslessDictionaryConvertible {
         
-        guard let uri = UserDefaults.standard.url(forKey: key),
-            let moid = context.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: uri)
-            else { throw RootLoadError.noRootUri }
+        // look for root by fetching node with no parent
+        let request: NSFetchRequest<CoreDataNode> = CoreDataNode.fetchRequest()
+        request.fetchLimit = 1
+        request.predicate = NSPredicate(format: "parent = nil")
         
-        guard let rootItem = try context.existingObject(with: moid) as? CoreDataNode
-            else { throw RootLoadError.castError }
-        
-        return CoreDataNodeWrapper<Item>(node: rootItem, in: context)
-    }
-    
-    fileprivate func getRoot<Item>(with identifier: String) -> CoreDataNodeWrapper<Item> where Item: Hashable, Item: LosslessDictionaryConvertible {
-        
-        let rootNodeKey = self.rootNodeKey(with: identifier)
-        
-        do { // load from root.uri
-            let existingRoot: CoreDataNodeWrapper<Item> = try loadRootFromUserDefaults(withKey: rootNodeKey)
-            return existingRoot
+        do {
+            guard let rootItem = try context.fetch(request).first else { return nil }
+            return CoreDataNodeWrapper<Item>(node: rootItem, in: context)
         }
-        catch { // couldn't find root, so will create a new one
-            let newRoot = CoreDataNodeWrapper<Item>(in: context)
-            saveContext() // so that objectID is stable
-            UserDefaults.standard.set(newRoot._node.objectID.uriRepresentation(), forKey: rootNodeKey)
-            return newRoot
-        }
+        catch { return nil }
+    }
+    
+    fileprivate func getRoot<Item>() -> CoreDataNodeWrapper<Item> where Item: Hashable, Item: LosslessDictionaryConvertible {
+        return fetchExistingRoot() ?? CoreDataNodeWrapper<Item>(in: context)
     }
     
     func saveContext() {
