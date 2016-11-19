@@ -54,14 +54,13 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
     fileprivate var _node: CoreDataNode
     private var context: NSManagedObjectContext
     
-    init(in context: NSManagedObjectContext) {
-        self._node = CoreDataNode(node: Node<Item>.root, in: context)
-        self.context = context
-    }
-    
     init(node: CoreDataNode, in context: NSManagedObjectContext) {
         self._node = node
         self.context = context
+    }
+    
+    convenience init(in context: NSManagedObjectContext) {
+        self.init(node: CoreDataNode(node: Node<Item>.root, in: context), in: context)
     }
     
     convenience init(item: Node<Item>, in context: NSManagedObjectContext) {
@@ -71,11 +70,22 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
     
     // profiling is showing that this is a bottleneck, especially the initializer
     lazy internal var node: Node<Item> = {
-        guard let dictionary = self._node.nodeDictionaryRepresentation, // this is grabbing the transformable property
-            let nodeFromDictionary = Node<Item>(dictionaryRepresentation: dictionary)
-            else { fatalError("CoreDataNode internal inconsistancy") }
         
-        return nodeFromDictionary
+        switch self._node.nodeType {
+            
+        case .root: return Node<Item>.root
+        case .boundaryUnseenLeadingItems: return Node<Item>.unseenLeadingItems
+        case .boundaryUnseenTrailingItems: return Node<Item>.unseenTrailingItems
+        case .boundarySequenceStart: return Node<Item>.sequenceStart
+        case .boundarySequenceEnd: return Node<Item>.sequenceEnd
+            
+        case .item:
+            guard let dictionary = self._node.itemDictionaryRepresentation , // this is grabbing the transformable property
+                let nodeFromDictionary = Node<Item>(itemDictionaryRepresentation: dictionary)
+                else { fatalError("CoreDataNode internal inconsistancy") }
+            
+            return nodeFromDictionary
+        }
     }()
     
     internal var count: Double {
@@ -83,21 +93,16 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
         set { _node.count = newValue }
     }
     
-//    public var childNodes: [CoreDataNodeWrapper<Item>]{
-//        guard let childrenSet = _node.children as? Set<CoreDataNode> else { return [] }
-//        return Array(childrenSet.map{ return CoreDataNodeWrapper(node: $0, in: context) })
-//    }
-    
     public var childNodes: AnySequence<CoreDataNodeWrapper<Item>> {
         guard let childrenSet = _node.children as? Set<CoreDataNode> else {
             let empty: [CoreDataNodeWrapper<Item>] = []
             return AnySequence(empty)
         }
-        
         return AnySequence(childrenSet.lazy.map{ return CoreDataNodeWrapper(node: $0, in: self.context) })
     }
     
     public func findChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item>? {
+        
         return childNodes.first(where: { wrapper in
             return wrapper.node == item
         })
@@ -112,13 +117,40 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
 
 // MARK: - CoreDataNode Helper
 
+// TODO: Review if this is a bottleneck
+// http://stackoverflow.com/a/32421787/1060154
+enum CoreDataNodeType: Int {
+    case root = 0
+    case boundaryUnseenTrailingItems
+    case boundaryUnseenLeadingItems
+    case boundarySequenceStart
+    case boundarySequenceEnd
+    case item
+}
+
 fileprivate extension CoreDataNode {
     
-    // TODO: Update schema so that root, and boundary items are directly represented, 
-    // and only an item node is captured by the transferable property
+    var nodeType: CoreDataNodeType {
+        set {
+            self.nodeTypeInt16RawValue = Int16(exactly: newValue.rawValue)!
+        }
+        get {
+            guard let intFromInt16 = Int(exactly: self.nodeTypeInt16RawValue),
+                let type = CoreDataNodeType(rawValue: intFromInt16) else {
+                fatalError("CoreDataNodeType internal representation inconsistancy")
+            }
+            return type
+        }
+    }
+    
     convenience init<Item: LosslessDictionaryConvertible>(node: Node<Item>, in context: NSManagedObjectContext) {
         self.init(context: context)
-        self.nodeDictionaryRepresentation = node.dictionaryRepresentation()
+        self.nodeType = node.nodeType
+        if case .item = node.nodeType {
+            // TODO, if the item is a scalar type, the node could have properties to represent it directly
+            let dict = node.itemDictionaryRepresentation()
+            self.itemDictionaryRepresentation = dict
+        }
     }
 }
 
@@ -180,10 +212,15 @@ internal class CoreDataStack {
         request.predicate = NSPredicate(format: "parent = nil")
         
         do {
-            guard let rootItem = try context.fetch(request).first else { return nil }
+            let rootItems = try context.fetch(request)
+            guard rootItems.count == 1,
+                let rootItem = rootItems.first
+                else { return nil }
             return CoreDataNodeWrapper<Item>(node: rootItem, in: context)
         }
-        catch { return nil }
+        catch {
+            return nil
+        }
     }
     
     fileprivate func getRoot<Item>() -> CoreDataNodeWrapper<Item> where Item: Hashable, Item: LosslessDictionaryConvertible {
@@ -227,9 +264,7 @@ public extension LosslessDictionaryConvertible {
 public extension LosslessTextConvertible {
     
     init?(dictionaryRepresentation: NSDictionary) {
-        guard let value = dictionaryRepresentation[Self.losslessDictionaryKey] as? Self else {
-            return nil
-        }
+        guard let value = dictionaryRepresentation[Self.losslessDictionaryKey] as? Self else { return nil }
         self = value
     }
     
@@ -239,118 +274,41 @@ public extension LosslessTextConvertible {
     }
 }
 
-// Attempt to optimize this
-// http://stackoverflow.com/a/32421787/1060154
-fileprivate enum NodeKey: RawRepresentable {
-    
-    typealias RawValue = String
-    
-    case root
-    case boundary
-    case item
-    
-    static let hashToRaw: [String] = [
-        "Node.Root",
-        "Node.Boundary",
-        "Node.Item"
-    ]
-    
-    static let rawToEnum: [String: NodeKey] = [
-        "Node.Root": .root,
-        "Node.Boundary": .boundary,
-        "Node.Item": .item
-    ]
-    
-    var rawValue: String {
-        return NodeKey.hashToRaw[hashValue]
-    }
-    
-    init?(rawValue: String) {
-        if let nodeKey = NodeKey.rawToEnum[rawValue] {
-            self = nodeKey
-        }
-        else {
-            return nil
-        }
-    }
-    
-    var dictionaryKey: String {
-        return self.rawValue
-    }
+fileprivate struct CoreDataNodeKey {
+    static let item = "item"
 }
-
-fileprivate enum NodeBoundaryKey: String {
-    case sequenceStart = "SequenceStart"
-    case sequenceEnd = "SequenceEnd"
-    case unseenLeadingItems = "UnseenLeadingItems"
-    case unseenTrailingItems = "UnseenTrailingItems"
-    
-    var dictionaryRepresentation: [String: AnyObject] {
-        return [NodeKey.boundary.rawValue: self.rawValue as AnyObject]
-    }
-}
-
 
 fileprivate extension Node where Item: LosslessDictionaryConvertible {
     
-    static func boundaryNode(from value: String) -> Node<Item>? {
-        
-        guard let boundaryType = NodeBoundaryKey(rawValue: value)
-            else { return nil }
-        
-        switch boundaryType {
-        case .sequenceEnd: return Node<Item>.sequenceEnd
-        case .sequenceStart: return Node<Item>.sequenceStart
-        case .unseenLeadingItems: return Node<Item>.unseenLeadingItems
-        case .unseenTrailingItems: return Node<Item>.unseenTrailingItems
+    var nodeType: CoreDataNodeType {
+        switch self {
+        case .root: return CoreDataNodeType.root
+        case .item: return CoreDataNodeType.item
+        case .sequenceEnd: return CoreDataNodeType.boundarySequenceEnd
+        case .sequenceStart: return CoreDataNodeType.boundarySequenceStart
+        case .unseenLeadingItems: return CoreDataNodeType.boundaryUnseenLeadingItems
+        case .unseenTrailingItems: return CoreDataNodeType.boundaryUnseenTrailingItems
         }
     }
     
-    init?(dictionaryRepresentation: NSDictionary) {
+    init?(itemDictionaryRepresentation: NSDictionary) {
         
-        guard let dictionary = dictionaryRepresentation as? [String: AnyObject],
+        guard let dictionary = itemDictionaryRepresentation as? [String: AnyObject],
             let keyRawValue = dictionary.keys.first,
-            let key = NodeKey(rawValue: keyRawValue),
-            let value = dictionary[keyRawValue]
+            keyRawValue == CoreDataNodeKey.item,
+            let value = dictionary[keyRawValue],
+            let itemDictionary = value as? NSDictionary,
+            let item = Item(dictionaryRepresentation: itemDictionary)
             else { return nil }
         
-        switch key {
-        case .root:
-            self = Node<Item>.root
-            
-        case .boundary:
-            guard let boundaryValue = value as? String,
-                let node = Node<Item>.boundaryNode(from: boundaryValue)
-                else { return nil }
-            self = node
-            
-        case .item:
-            guard let itemDictionary = value as? NSDictionary,
-                let item = Item(dictionaryRepresentation: itemDictionary)
-                else { return nil }
             self = Node<Item>.item(item)
-        }
     }
     
-    func dictionaryRepresentation() -> NSDictionary {
-        
-        let dictionary: [String: AnyObject] = {
-            switch self {
-            // root
-            case .root: return [NodeKey.root.dictionaryKey: "root" as AnyObject]
-                
-            // boundary items
-            case .sequenceEnd: return NodeBoundaryKey.sequenceEnd.dictionaryRepresentation
-            case .sequenceStart: return NodeBoundaryKey.sequenceStart.dictionaryRepresentation
-            case .unseenLeadingItems: return NodeBoundaryKey.unseenLeadingItems.dictionaryRepresentation
-            case .unseenTrailingItems: return NodeBoundaryKey.unseenTrailingItems.dictionaryRepresentation
-                
-            // literal item
-            case .item(let value):
-                return [NodeKey.item.dictionaryKey: value.dictionaryRepresentation()]
-            }
-        }()
-        
-        return dictionary as NSDictionary
+    func itemDictionaryRepresentation() -> NSDictionary? {
+        if let item = self.item {
+            let dict = [CoreDataNodeKey.item: item.dictionaryRepresentation()]
+            return dict as NSDictionary
+        }
+        else { return nil }
     }
 }

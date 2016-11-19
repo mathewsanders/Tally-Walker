@@ -65,6 +65,7 @@ class TallyTestsCoreDataStore: XCTestCase {
         
     }
     
+    // TODO: Update ABC.sqlite example with new schema
     func testLoadFromExistingStore() {
         
         guard let storeUrl = Bundle(for: TallyTestsCoreDataStore.self).url(forResource: "ABC", withExtension: "sqlite") else {

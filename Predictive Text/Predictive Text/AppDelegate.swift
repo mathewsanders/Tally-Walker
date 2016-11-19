@@ -20,7 +20,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         var model = Tally<String>(representing: .continuousSequence, ngram: .ngram(depth: 2))
         model.store = AnyTallyStore(store)
         
-        let lines = array(from: "The-Picture-of-Dorian-Gray")
+        let lines = array(from: "The-Picture-of-Dorian-Gray-short")
         let seperators = CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters)
         
         print("loading....", lines.count)
