@@ -52,10 +52,9 @@ extension PredictiveTextField {
         func updateSuggestions() {
             
             let lastWord = target.words.last ?? ""
-            let startingItems = target.model.startingItems().sorted(by: orderProbabilities)
-            let nextItems = target.model.itemProbabilities(after: lastWord).sorted(by: orderProbabilities).filter(onlyItemNodes)
+            let nextItems = target.model.itemProbabilities(after: lastWord).filter(onlyItemNodes).sorted(by: orderProbabilities)
             
-            let allSuggestions = nextItems.isEmpty ? startingItems : nextItems
+            let allSuggestions = nextItems.isEmpty ? target.model.startingItems().sorted(by: orderProbabilities) : nextItems
             
             suggestions = allSuggestions.prefix(3).flatMap({ $0.item.item })
             

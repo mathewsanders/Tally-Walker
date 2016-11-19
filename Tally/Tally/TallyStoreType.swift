@@ -62,7 +62,7 @@ public protocol TallyStoreNodeType {
     var node: Node<Item> { get }
     
     // get child nodes
-    var childNodes: [Self] { get }
+    var childNodes: AnySequence<Self> { get }
     
     // return an existing child node matching an item
     func findChildNode(with item: Node<Item>) -> Self?
@@ -128,7 +128,7 @@ extension TallyStoreNodeType  {
             if excludedItems.contains(child.node) { return nil }
             
             let prob = child.count / total
-            return (item: child.node, probability: prob)
+            return (probability: prob, item: child.node)
         }
     }
 }

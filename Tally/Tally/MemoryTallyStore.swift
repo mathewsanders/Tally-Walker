@@ -45,8 +45,8 @@ fileprivate final class MemoryNode<Item>: TallyStoreNodeType where Item: Hashabl
         self.node = node
     }
     
-    public var childNodes: [MemoryNode<Item>]{
-        return Array(children.values)
+    public var childNodes: AnySequence<MemoryNode<Item>>{
+        return AnySequence(children.values)
     }
     
     public func findChildNode(with item: Node<Item>) -> MemoryNode<Item>? {

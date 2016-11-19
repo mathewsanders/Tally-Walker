@@ -69,25 +69,34 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
         self.init(node: node, in: context)
     }
     
-    internal var node: Node<Item> {
-        
-        guard let dictionary = _node.nodeDictionaryRepresentation,
+    // profiling is showing that this is a bottleneck, especially the initializer
+    lazy internal var node: Node<Item> = {
+        guard let dictionary = self._node.nodeDictionaryRepresentation, // this is grabbing the transformable property
             let nodeFromDictionary = Node<Item>(dictionaryRepresentation: dictionary)
             else { fatalError("CoreDataNode internal inconsistancy") }
         
         return nodeFromDictionary
-    }
+    }()
     
     internal var count: Double {
         get { return _node.count }
         set { _node.count = newValue }
     }
     
-    public var childNodes: [CoreDataNodeWrapper<Item>]{
-        guard let childrenSet = _node.children as? Set<CoreDataNode> else { return [] }
-        return Array(childrenSet.map{ return CoreDataNodeWrapper(node: $0, in: context) })
-    }
+//    public var childNodes: [CoreDataNodeWrapper<Item>]{
+//        guard let childrenSet = _node.children as? Set<CoreDataNode> else { return [] }
+//        return Array(childrenSet.map{ return CoreDataNodeWrapper(node: $0, in: context) })
+//    }
+    
+    public var childNodes: AnySequence<CoreDataNodeWrapper<Item>> {
+        guard let childrenSet = _node.children as? Set<CoreDataNode> else {
+            let empty: [CoreDataNodeWrapper<Item>] = []
+            return AnySequence(empty)
+        }
         
+        return AnySequence(childrenSet.lazy.map{ return CoreDataNodeWrapper(node: $0, in: self.context) })
+    }
+    
     public func findChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item>? {
         return childNodes.first(where: { wrapper in
             return wrapper.node == item
@@ -105,6 +114,8 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
 
 fileprivate extension CoreDataNode {
     
+    // TODO: Update schema so that root, and boundary items are directly represented, 
+    // and only an item node is captured by the transferable property
     convenience init<Item: LosslessDictionaryConvertible>(node: Node<Item>, in context: NSManagedObjectContext) {
         self.init(context: context)
         self.nodeDictionaryRepresentation = node.dictionaryRepresentation()
@@ -121,6 +132,7 @@ internal class CoreDataStack {
         return persistentContainer.viewContext
     }
     
+    // TODO: Investigate having a read-only store for `itemProbabilities` and `distributions`
     init(identifier containerName: String, existingStore storeUrl: URL? = nil, inMemory: Bool = false) {
         
         let bundle = Bundle(for: CoreDataStack.self) // check this works as expected in a module
@@ -146,6 +158,12 @@ internal class CoreDataStack {
             let description = NSPersistentStoreDescription()
             description.url = storeUrl
             persistentContainer.persistentStoreDescriptions = [description]
+            
+            // TODO: Review default options 
+            // https://alastairs-place.net/blog/2013/04/17/why-core-data-is-a-bad-idea/
+            let sqlitePragmas = description.sqlitePragmas
+            print("sqlitePragmas:")
+            print(sqlitePragmas)
         }
         
         persistentContainer.loadPersistentStores{ (storeDescription, error) in
@@ -197,10 +215,12 @@ public protocol LosslessTextConvertible: LosslessDictionaryConvertible {
     init?(_ text: String)
 }
 
+// TODO: Research if `type(of: self)` is a possible bottleneck
 public extension LosslessDictionaryConvertible {
     public static var losslessDictionaryKey: String {
         let type = type(of: self)
         return "\(type)"
+        //return "LosslessDictionaryConvertible.key"
     }
 }
 
@@ -219,10 +239,40 @@ public extension LosslessTextConvertible {
     }
 }
 
-fileprivate enum NodeKey: String {
-    case boundary = "Node.Boundary"
-    case item = "Node.Item"
-    case root = "Node.Root"
+// Attempt to optimize this
+// http://stackoverflow.com/a/32421787/1060154
+fileprivate enum NodeKey: RawRepresentable {
+    
+    typealias RawValue = String
+    
+    case root
+    case boundary
+    case item
+    
+    static let hashToRaw: [String] = [
+        "Node.Root",
+        "Node.Boundary",
+        "Node.Item"
+    ]
+    
+    static let rawToEnum: [String: NodeKey] = [
+        "Node.Root": .root,
+        "Node.Boundary": .boundary,
+        "Node.Item": .item
+    ]
+    
+    var rawValue: String {
+        return NodeKey.hashToRaw[hashValue]
+    }
+    
+    init?(rawValue: String) {
+        if let nodeKey = NodeKey.rawToEnum[rawValue] {
+            self = nodeKey
+        }
+        else {
+            return nil
+        }
+    }
     
     var dictionaryKey: String {
         return self.rawValue
@@ -239,6 +289,7 @@ fileprivate enum NodeBoundaryKey: String {
         return [NodeKey.boundary.rawValue: self.rawValue as AnyObject]
     }
 }
+
 
 fileprivate extension Node where Item: LosslessDictionaryConvertible {
     
