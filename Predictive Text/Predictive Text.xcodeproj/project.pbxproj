@@ -15,6 +15,8 @@
 		AF80BC071DD7A6160016C182 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AF80BC051DD7A6160016C182 /* Main.storyboard */; };
 		AF80BC091DD7A6160016C182 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AF80BC081DD7A6160016C182 /* Assets.xcassets */; };
 		AF80BC0C1DD7A6160016C182 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AF80BC0A1DD7A6160016C182 /* LaunchScreen.storyboard */; };
+		AFE702F11DE0022B00E952E6 /* The-Picture-of-Dorian-Gray.txt in Resources */ = {isa = PBXBuildFile; fileRef = AFE702F01DE0022B00E952E6 /* The-Picture-of-Dorian-Gray.txt */; };
+		AFE702F81DE00BFB00E952E6 /* Dorian-Gray.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = AFE702F71DE00BFB00E952E6 /* Dorian-Gray.sqlite */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -45,6 +47,8 @@
 		AF80BC081DD7A6160016C182 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AF80BC0B1DD7A6160016C182 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		AF80BC0D1DD7A6160016C182 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AFE702F01DE0022B00E952E6 /* The-Picture-of-Dorian-Gray.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "The-Picture-of-Dorian-Gray.txt"; sourceTree = "<group>"; };
+		AFE702F71DE00BFB00E952E6 /* Dorian-Gray.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Dorian-Gray.sqlite"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -92,6 +96,8 @@
 				AF1797981DD7A87600D45737 /* ViewController.swift */,
 				AF1797961DD7A87600D45737 /* PredictiveTextField.swift */,
 				AF1797971DD7A87600D45737 /* PredictiveTextField+Classes.swift */,
+				AFE702F01DE0022B00E952E6 /* The-Picture-of-Dorian-Gray.txt */,
+				AFE702F71DE00BFB00E952E6 /* Dorian-Gray.sqlite */,
 				AF80BC051DD7A6160016C182 /* Main.storyboard */,
 				AF80BC081DD7A6160016C182 /* Assets.xcassets */,
 				AF80BC0A1DD7A6160016C182 /* LaunchScreen.storyboard */,
@@ -183,8 +189,10 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AFE702F11DE0022B00E952E6 /* The-Picture-of-Dorian-Gray.txt in Resources */,
 				AF80BC0C1DD7A6160016C182 /* LaunchScreen.storyboard in Resources */,
 				AF80BC091DD7A6160016C182 /* Assets.xcassets in Resources */,
+				AFE702F81DE00BFB00E952E6 /* Dorian-Gray.sqlite in Resources */,
 				AF80BC071DD7A6160016C182 /* Main.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

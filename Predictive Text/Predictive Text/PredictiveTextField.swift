@@ -18,10 +18,7 @@ class PredictiveTextField: UITextField {
     var store: CoreDataTallyStore<String>
     var model: Tally<String>
     
-    private lazy var contextualInputAccessoryView: InputAccessoryView = { [unowned self] in
-        let inputAccessory = InputAccessoryView(withTarget: self)
-        return inputAccessory
-    }()
+    private var contextualInputAccessoryView: InputAccessoryView?
     
     var words: [String] {
         if let text = text?.trimmingCharacters(in: seperatorCharacters), text != "" {
@@ -34,24 +31,29 @@ class PredictiveTextField: UITextField {
     required init?(coder aDecoder: NSCoder) {
         
         // set up model and store
-        store = CoreDataTallyStore<String>(named: "PredictiveTextModelStore")
-        model = Tally(representing: TallySequenceType.continuousSequence, ngram: .trigram)
+        guard let storeUrl = Bundle.main.url(forResource: "Dorian-Gray", withExtension: "sqlite") else {
+            return nil
+        }
+        
+        store = CoreDataTallyStore<String>(named: "PredictiveTextModelStore", restoreFrom: storeUrl)
+        
+        //store = CoreDataTallyStore<String>(named: "PredictiveTextModelStore")
+        model = Tally(representing: TallySequenceType.continuousSequence, ngram: .bigram)
         model.store = AnyTallyStore(store)
         
         super.init(coder: aDecoder)
+        
+        dump(model.distributions())
         
         // set up default keyboard
         keyboardType = .default
         autocorrectionType = .no
         spellCheckingType = .no
         
-        // train model with some examples
-        //model.observe(sequence: "the cat in the hat sat on the mat".components(separatedBy: seperatorCharacters))
-        //model.observe(sequence: "the quick brown fox jumped over the fence".components(separatedBy: seperatorCharacters))
-        
         // set up input accessory
+        contextualInputAccessoryView = InputAccessoryView(withTarget: self)
         inputAccessoryView = contextualInputAccessoryView
-        contextualInputAccessoryView.updateSuggestions()
+        contextualInputAccessoryView?.updateSuggestions()
     }
     
     deinit {
@@ -65,6 +67,6 @@ class PredictiveTextField: UITextField {
     }
     
     func updateSuggestions() {
-        contextualInputAccessoryView.updateSuggestions()
+        contextualInputAccessoryView?.updateSuggestions()
     }
 }

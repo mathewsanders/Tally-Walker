@@ -7,15 +7,56 @@
 //
 
 import UIKit
+import Tally
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
-
+    
+    func loadData() {
+        
+        let store = CoreDataTallyStore<String>(named: "Dorian-Gray")
+        var model = Tally<String>(representing: .continuousSequence, ngram: .ngram(depth: 2))
+        model.store = AnyTallyStore(store)
+        
+        let lines = array(from: "The-Picture-of-Dorian-Gray")
+        let seperators = CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters)
+        
+        print("loading....", lines.count)
+        let total = Double(lines.count)
+        var count = 1.0
+        for line in lines {
+            let normalized = normalize(text: line)
+            if normalized != "" {
+                let percent = Int(100*(count/total))
+                
+                count += 1
+                let words = normalized.components(separatedBy: seperators).filter({ word in return !word.isEmpty })
+                print(percent, words)
+                model.observe(sequence: words)
+            }
+        }
+        
+        store.save()
+        print("...saved")
+    }
+    
+    func array(from fileName: String) -> [String] {
+        guard let path = Bundle.main.path(forResource: fileName, ofType: "txt") else { return [] }
+        do {
+            let content = try String(contentsOfFile:path, encoding: String.Encoding.utf8)
+            return content.components(separatedBy: CharacterSet.newlines)
+        } catch { return [] }
+    }
+    
+    func normalize(text: String) -> String {
+        return text.lowercased().trimmingCharacters(in: CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters))
+    }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        //loadData()
         return true
     }
 
