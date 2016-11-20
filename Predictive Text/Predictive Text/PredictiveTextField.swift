@@ -37,7 +37,6 @@ class PredictiveTextField: UITextField {
         
         store = CoreDataTallyStore<String>(named: "PredictiveTextModelStore", restoreFrom: storeUrl)
         
-        //store = CoreDataTallyStore<String>(named: "PredictiveTextModelStore")
         model = Tally(representing: TallySequenceType.continuousSequence, ngram: .bigram)
         model.store = AnyTallyStore(store)
         

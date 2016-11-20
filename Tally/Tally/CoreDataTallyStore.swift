@@ -29,7 +29,7 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     }
     
     deinit {
-        stack.saveContext()
+        save()
     }
     
     // MARK: TallyStoreType
@@ -80,7 +80,8 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
         case .boundarySequenceEnd: return Node<Item>.sequenceEnd
             
         case .item:
-            guard let dictionary = self._node.itemDictionaryRepresentation , // this is grabbing the transformable property
+            // this is grabbing the transformable property
+            guard let dictionary = self._node.itemDictionaryRepresentation,
                 let nodeFromDictionary = Node<Item>(itemDictionaryRepresentation: dictionary)
                 else { fatalError("CoreDataNode internal inconsistancy") }
             
@@ -106,10 +107,13 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
     // check to see if `parents` includes `self`.
     public func findChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item>? {
         return childNodes.first(where: { wrapper in
-            
-            // nodeType is cheaper check than unrwapping node, so do this first
-            return wrapper._node.nodeType == item.nodeType && wrapper.node == item
+            return wrapper.contains(node: item)
         })
+    }
+    
+    // nodeType is cheaper check than unrwapping node, so do this first
+    private func contains(node: Node<Item>) -> Bool {
+        return self._node.nodeType == node.nodeType && self.node == node
     }
     
     public func makeChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item> {
@@ -194,12 +198,6 @@ internal class CoreDataStack {
             let description = NSPersistentStoreDescription()
             description.url = storeUrl
             persistentContainer.persistentStoreDescriptions = [description]
-            
-            // TODO: Review default options 
-            // https://alastairs-place.net/blog/2013/04/17/why-core-data-is-a-bad-idea/
-            let sqlitePragmas = description.sqlitePragmas
-            print("sqlitePragmas:")
-            print(sqlitePragmas)
         }
         
         persistentContainer.loadPersistentStores{ (storeDescription, error) in
@@ -214,17 +212,17 @@ internal class CoreDataStack {
         let request: NSFetchRequest<CoreDataNode> = CoreDataNode.fetchRequest()
         request.fetchLimit = 1
         request.predicate = NSPredicate(format: "parent = nil")
+        request.relationshipKeyPathsForPrefetching = ["children"]
         
         do {
             let rootItems = try context.fetch(request)
             guard rootItems.count == 1,
                 let rootItem = rootItems.first
                 else { return nil }
+            
             return CoreDataNodeWrapper<Item>(node: rootItem, in: context)
         }
-        catch {
-            return nil
-        }
+        catch { return nil }
     }
     
     fileprivate func getRoot<Item>() -> CoreDataNodeWrapper<Item> where Item: Hashable, Item: LosslessDictionaryConvertible {
@@ -246,6 +244,11 @@ internal class CoreDataStack {
 
 // MARK: - LosslessDictionaryConvertible & Node extension
 
+fileprivate struct CoreDataTallyStoreKey {
+    static let CoreDataNodeItem = "CoreDataNodeItem"
+    static let LosslessConvertibleDictionary = "LosslessConvertibleDictionary"
+}
+
 /// A representation of a Type with internal property keys and values mapped to a NSDictionary that can be used in store
 public protocol LosslessDictionaryConvertible {
     init?(dictionaryRepresentation: NSDictionary)
@@ -256,30 +259,17 @@ public protocol LosslessTextConvertible: LosslessDictionaryConvertible {
     init?(_ text: String)
 }
 
-// TODO: Research if `type(of: self)` is a possible bottleneck
-public extension LosslessDictionaryConvertible {
-    public static var losslessDictionaryKey: String {
-        let type = type(of: self)
-        return "\(type)"
-        //return "LosslessDictionaryConvertible.key"
-    }
-}
-
 public extension LosslessTextConvertible {
     
     init?(dictionaryRepresentation: NSDictionary) {
-        guard let value = dictionaryRepresentation[Self.losslessDictionaryKey] as? Self else { return nil }
+        guard let value = dictionaryRepresentation[CoreDataTallyStoreKey.LosslessConvertibleDictionary] as? Self else { return nil }
         self = value
     }
     
     func dictionaryRepresentation() -> NSDictionary {
-        let dict = [Self.losslessDictionaryKey: self]
+        let dict = [CoreDataTallyStoreKey.LosslessConvertibleDictionary: self]
         return dict as NSDictionary
     }
-}
-
-fileprivate struct CoreDataNodeKey {
-    static let item = "item"
 }
 
 fileprivate extension Node where Item: LosslessDictionaryConvertible {
@@ -298,9 +288,7 @@ fileprivate extension Node where Item: LosslessDictionaryConvertible {
     init?(itemDictionaryRepresentation: NSDictionary) {
         
         guard let dictionary = itemDictionaryRepresentation as? [String: AnyObject],
-            let keyRawValue = dictionary.keys.first,
-            keyRawValue == CoreDataNodeKey.item,
-            let value = dictionary[keyRawValue],
+            let value = dictionary[CoreDataTallyStoreKey.CoreDataNodeItem],
             let itemDictionary = value as? NSDictionary,
             let item = Item(dictionaryRepresentation: itemDictionary)
             else { return nil }
@@ -310,7 +298,7 @@ fileprivate extension Node where Item: LosslessDictionaryConvertible {
     
     func itemDictionaryRepresentation() -> NSDictionary? {
         if let item = self.item {
-            let dict = [CoreDataNodeKey.item: item.dictionaryRepresentation()]
+            let dict = [CoreDataTallyStoreKey.CoreDataNodeItem: item.dictionaryRepresentation()]
             return dict as NSDictionary
         }
         else { return nil }
