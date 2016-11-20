@@ -101,10 +101,14 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
         return AnySequence(childrenSet.lazy.map{ return CoreDataNodeWrapper(node: $0, in: self.context) })
     }
     
+    // TODO: Investigate if node literal values could be stored independently 
+    // (which would decrease store size), and after retrieving that literal item instance,
+    // check to see if `parents` includes `self`.
     public func findChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item>? {
-        
         return childNodes.first(where: { wrapper in
-            return wrapper.node == item
+            
+            // nodeType is cheaper check than unrwapping node, so do this first
+            return wrapper._node.nodeType == item.nodeType && wrapper.node == item
         })
     }
     

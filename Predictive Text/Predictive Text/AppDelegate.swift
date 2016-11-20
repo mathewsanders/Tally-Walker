@@ -20,18 +20,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         var model = Tally<String>(representing: .continuousSequence, ngram: .ngram(depth: 2))
         model.store = AnyTallyStore(store)
         
-        let lines = array(from: "The-Picture-of-Dorian-Gray-short")
+        let lines = array(from: "The-Picture-of-Dorian-Gray")
         let seperators = CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters)
         
         print("loading....", lines.count)
         let total = Double(lines.count)
         var count = 1.0
         for line in lines {
+            count += 1
             let normalized = normalize(text: line)
             if normalized != "" {
                 let percent = Int(100*(count/total))
                 
-                count += 1
                 let words = normalized.components(separatedBy: seperators).filter({ word in return !word.isEmpty })
                 print(percent, words)
                 model.observe(sequence: words)
