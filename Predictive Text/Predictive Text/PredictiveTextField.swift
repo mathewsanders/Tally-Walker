@@ -30,17 +30,20 @@ class PredictiveTextField: UITextField {
     
     required init?(coder aDecoder: NSCoder) {
         
-        // set up model and store
-        guard let storeUrl = Bundle.main.url(forResource: "Dorian-Gray", withExtension: "sqlite") else {
-            return nil
-        }
+        // set up store
+        guard let archivedStore = Bundle.main.url(forResource: "Dorian-Gray", withExtension: "sqlite") else { return nil }
+        store = CoreDataTallyStore<String>(named: "PredictiveTextModelStore", fillFrom: archivedStore)
+        //store = CoreDataTallyStore<String>(named: "PredictiveTextModelStore")
         
-        store = CoreDataTallyStore<String>(named: "PredictiveTextModelStore", restoreFrom: storeUrl)
-        
+        // set up model
         model = Tally(representing: TallySequenceType.continuousSequence, ngram: .bigram)
         model.store = AnyTallyStore(store)
         
         super.init(coder: aDecoder)
+        
+        print("about to observe")
+        //model.observe(sequence: ["fat", "cat"])
+        print("done observing")
         
         dump(model.distributions())
         
@@ -56,13 +59,13 @@ class PredictiveTextField: UITextField {
     }
     
     deinit {
-        store.save()
+        //store.save()
     }
     
     func learn(example: String) {
         let sequence = example.trimmingCharacters(in: seperatorCharacters).components(separatedBy: seperatorCharacters)
         model.observe(sequence: sequence)
-        store.save()
+        //store.save()
     }
     
     func updateSuggestions() {

@@ -13,43 +13,75 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
         
     private var stack: CoreDataStack
     private var root: CoreDataNodeWrapper<Item>
+    private var backgroundRoot: CoreDataNodeWrapper<Item>
     
     static func stackIdentifier(named name: String) -> String {
         return "Tally.CoreDataStore." + name
     }
     
-    public init(named name: String = "DefaultStore", restoreFrom existingStore: URL? = nil, inMemory: Bool = false) {
+    public init(named name: String = "DefaultStore", fillFrom archivedStore: URL? = nil, inMemory: Bool = false) {
         let identifier = CoreDataTallyStore.stackIdentifier(named: name)
-        self.stack = CoreDataStack(identifier: identifier, existingStore: existingStore, inMemory: inMemory)
-        self.root = stack.getRoot()
-    }
-    
-    public func save() {
-        stack.saveContext()
+        
+        self.stack = CoreDataStack(identifier: identifier, fromArchive: archivedStore, inMemory: inMemory)
+        self.root = stack.getRoot(from: stack.mainContext)
+        self.backgroundRoot = stack.getRoot(from: stack.backgroundContext)
+        
+        //self.stack.save(context: stack.mainContext)
+        //self.stack.save(context: stack.backgroundContext)
     }
     
     deinit {
-        save()
+        self.stack.save(context: stack.mainContext)
     }
     
     // MARK: TallyStoreType
     
-    public func incrementCount(for sequence: [Node<Item>]) {    
-        root.incrementCount(for: [Node<Item>.root] + sequence)
+    
+    
+    public func incrementCount(for sequence: [Node<Item>]) {
+        // http://www.informit.com/articles/article.aspx?p=2160906
+        //print("stack.mainContext.registeredObjects.count:", stack.mainContext.registeredObjects.count)
+        //root.incrementCount(for: [Node<Item>.root] + sequence)
+        
+        stack.mainContext.refreshAllObjects()
+        
+        stack.backgroundContext.perform {
+            
+            self.backgroundRoot.incrementCount(for: [Node<Item>.root] + sequence)
+            self.stack.save(context: self.stack.backgroundContext)
+            self.stack.mainContext.perform {
+                //self.stack.mainContext.refreshAllObjects()
+                //self.stack.save(context: self.stack.mainContext)
+            }
+        }
+        
+        
+        //DispatchQueue.main.async {
+            
+            //self.stack.save(context: self.stack.mainContext)
+        //}
+        //self.stack.mainContext.refreshAllObjects()
+        //backgroundContext.refresh(bgRoot._node, mergeChanges: true)
+        //self.stack.persistentContainer.viewContext.refresh(self.root._node, mergeChanges: true)
+            
+        
     }
     
     public func itemProbabilities(after sequence: [Node<Item>]) -> [(probability: Double, item: Node<Item>)] {
+        //print("stack.mainContext.registeredObjects.count:", stack.mainContext.registeredObjects.count)
         return root.itemProbabilities(after: [Node<Item>.root] + sequence)
     }
     
     public func distributions(excluding excludedItems: [Node<Item>]) -> [(probability: Double, item: Node<Item>)] {
+        //print("stack.mainContext.registeredObjects.count:", stack.mainContext.registeredObjects.count)
         return root.distributions(excluding: excludedItems)
     }
 }
 
 // MARK: - TallyStoreNodeType
 
-fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Hashable, Item: LosslessDictionaryConvertible {
+// can not extend NSManangedOjbect as a generic type, so using this as a wrapper
+fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Hashable, Item: LosslessDictionaryConvertible {
     
     fileprivate var _node: CoreDataNode
     private var context: NSManagedObjectContext
@@ -59,17 +91,19 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
         self.context = context
     }
     
-    convenience init(in context: NSManagedObjectContext) {
-        self.init(node: CoreDataNode(node: Node<Item>.root, in: context), in: context)
+    init(in context: NSManagedObjectContext) {
+        let root = CoreDataNode(node: Node<Item>.root, in: context)
+        root.count = 1.0
+        self.init(node: root, in: context)
     }
     
-    convenience init(item: Node<Item>, in context: NSManagedObjectContext) {
+    init(item: Node<Item>, in context: NSManagedObjectContext) {
         let node = CoreDataNode(node: item, in: context)
         self.init(node: node, in: context)
     }
     
     // profiling is showing that this is a bottleneck, especially the initializer
-    lazy internal var node: Node<Item> = {
+    internal var node: Node<Item> {
         
         switch self._node.nodeType {
             
@@ -87,11 +121,14 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
             
             return nodeFromDictionary
         }
-    }()
+    }
     
     internal var count: Double {
         get { return _node.count }
-        set { _node.count = newValue }
+        set {
+            //print("incrementing count (\(newValue)) for", self.node, self._node.parent?.nodeType)
+            _node.count = newValue
+        }
     }
     
     public var childNodes: AnySequence<CoreDataNodeWrapper<Item>> {
@@ -106,19 +143,24 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item
     // (which would decrease store size), and after retrieving that literal item instance,
     // check to see if `parents` includes `self`.
     public func findChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item>? {
-        return childNodes.first(where: { wrapper in
-            return wrapper.contains(node: item)
+        
+        
+        
+        return childNodes.first(where: { childWrapper in
+            return childWrapper.item(is: item)
         })
     }
     
     // nodeType is cheaper check than unrwapping node, so do this first
-    private func contains(node: Node<Item>) -> Bool {
-        return self._node.nodeType == node.nodeType && self.node == node
+    private func item(is node: Node<Item>) -> Bool {
+        return self._node.nodeType == node.nodeType && node == self.node
     }
     
     public func makeChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item> {
         let child = CoreDataNodeWrapper(item: item, in: context)
-        _node.addToChildren(child._node)        
+        //_node.addToChildren(child._node)
+        child._node.parent = _node
+        //try! context.save()
         return child
     }
 }
@@ -159,6 +201,8 @@ fileprivate extension CoreDataNode {
             let dict = node.itemDictionaryRepresentation()
             self.itemDictionaryRepresentation = dict
         }
+        //try! context.save()
+        //print("making CoreDataNode for", node)
     }
 }
 
@@ -168,12 +212,23 @@ internal class CoreDataStack {
     
     let persistentContainer: NSPersistentContainer
     
-    var context: NSManagedObjectContext {
-        return persistentContainer.viewContext
-    }
+    lazy var mainContext: NSManagedObjectContext = {
+        let context = self.persistentContainer.viewContext
+        context.automaticallyMergesChangesFromParent = true
+        context.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
+        return context
+        
+    }()
+    
+    lazy var backgroundContext: NSManagedObjectContext = {
+        let context = self.persistentContainer.newBackgroundContext()
+        context.automaticallyMergesChangesFromParent = true
+        context.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
+        return context
+    }()
     
     // TODO: Investigate having a read-only store for `itemProbabilities` and `distributions`
-    init(identifier containerName: String, existingStore storeUrl: URL? = nil, inMemory: Bool = false) {
+    init(identifier storeName: String, fromArchive archivedStore: URL? = nil, inMemory: Bool = false) {
         
         let bundle = Bundle(for: CoreDataStack.self) // check this works as expected in a module
         
@@ -183,7 +238,7 @@ internal class CoreDataStack {
             let mom = NSManagedObjectModel(contentsOf: modelUrl)
             else { fatalError("Unresolved error") }
         
-        persistentContainer = NSPersistentContainer(name: containerName, managedObjectModel: mom)
+        persistentContainer = NSPersistentContainer(name: storeName, managedObjectModel: mom)
         
         if inMemory {
             print("Warning: Core Data using NSInMemoryStoreType, changes will not persist, use for testing only")
@@ -192,11 +247,23 @@ internal class CoreDataStack {
             persistentContainer.persistentStoreDescriptions = [description]
         }
         
-        if let storeUrl = storeUrl {
+        if let storeUrl = archivedStore {
             // TODO: Should validate if the resource at the URL is a sqlite resource
             // and that it has an approrpiate model
+            
+            let documentStoreUrl = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent(storeName).appendingPathExtension("sqlite")
+            
+            if !FileManager.default.fileExists(atPath: documentStoreUrl.path) {
+                do {
+                    try FileManager.default.copyItem(at: storeUrl, to: documentStoreUrl)
+                }
+                catch let error as NSError {
+                    fatalError(error.description)
+                }
+            }
+            
             let description = NSPersistentStoreDescription()
-            description.url = storeUrl
+            description.url = documentStoreUrl
             persistentContainer.persistentStoreDescriptions = [description]
         }
         
@@ -206,7 +273,7 @@ internal class CoreDataStack {
         }
     }
     
-    private func fetchExistingRoot<Item>() -> CoreDataNodeWrapper<Item>? where Item: Hashable, Item: LosslessDictionaryConvertible {
+    private func fetchExistingRoot<Item>(from context: NSManagedObjectContext) -> CoreDataNodeWrapper<Item>? where Item: Hashable, Item: LosslessDictionaryConvertible {
         
         // look for root by fetching node with no parent
         let request: NSFetchRequest<CoreDataNode> = CoreDataNode.fetchRequest()
@@ -225,12 +292,13 @@ internal class CoreDataStack {
         catch { return nil }
     }
     
-    fileprivate func getRoot<Item>() -> CoreDataNodeWrapper<Item> where Item: Hashable, Item: LosslessDictionaryConvertible {
-        return fetchExistingRoot() ?? CoreDataNodeWrapper<Item>(in: context)
+    fileprivate func getRoot<Item>(from context: NSManagedObjectContext) -> CoreDataNodeWrapper<Item> where Item: Hashable, Item: LosslessDictionaryConvertible {
+        let root = fetchExistingRoot(from: context) ?? CoreDataNodeWrapper<Item>(in: context)
+        //save(context: context)
+        return root
     }
     
-    func saveContext() {
-        let context = persistentContainer.viewContext
+    func save(context: NSManagedObjectContext) {
         if context.hasChanges {
             do {
                 try context.save()

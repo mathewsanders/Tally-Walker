@@ -17,7 +17,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func loadData() {
         
         let store = CoreDataTallyStore<String>(named: "Dorian-Gray")
-        var model = Tally<String>(representing: .continuousSequence, ngram: .ngram(depth: 2))
+        var model = Tally<String>(representing: .continuousSequence, ngram: .bigram)
         model.store = AnyTallyStore(store)
         
         let lines = array(from: "The-Picture-of-Dorian-Gray")
@@ -38,7 +38,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             }
         }
         
-        store.save()
+        //store.save()
         print("...saved")
     }
     
