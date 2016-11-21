@@ -25,55 +25,41 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
         self.stack = CoreDataStack(identifier: identifier, fromArchive: archivedStore, inMemory: inMemory)
         self.root = stack.getRoot(from: stack.mainContext)
         self.backgroundRoot = stack.getRoot(from: stack.backgroundContext)
-        
-        //self.stack.save(context: stack.mainContext)
-        //self.stack.save(context: stack.backgroundContext)
     }
     
     deinit {
         self.stack.save(context: stack.mainContext)
     }
     
+    // TODO: Explore if `migratePersistentStore` is needed to extract a store to be later imported
+    // Also check to see if -shm and -wal files need to be included.
+    public func archive(to name: String) throws {
+        
+        if let currentStore = self.stack.persistentContainer.persistentStoreCoordinator.persistentStores.last,
+            let documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            
+            let newLocation = documentDirectory.appendingPathComponent(name).appendingPathExtension("sqlite")
+                
+            try self.stack.persistentContainer.persistentStoreCoordinator.migratePersistentStore(currentStore, to: newLocation, options: nil, withType: NSSQLiteStoreType)
+        }
+    }
+    
     // MARK: TallyStoreType
     
-    
-    
     public func incrementCount(for sequence: [Node<Item>]) {
-        // http://www.informit.com/articles/article.aspx?p=2160906
-        //print("stack.mainContext.registeredObjects.count:", stack.mainContext.registeredObjects.count)
-        //root.incrementCount(for: [Node<Item>.root] + sequence)
-        
         stack.mainContext.refreshAllObjects()
         
         stack.backgroundContext.perform {
-            
             self.backgroundRoot.incrementCount(for: [Node<Item>.root] + sequence)
             self.stack.save(context: self.stack.backgroundContext)
-            self.stack.mainContext.perform {
-                //self.stack.mainContext.refreshAllObjects()
-                //self.stack.save(context: self.stack.mainContext)
-            }
         }
-        
-        
-        //DispatchQueue.main.async {
-            
-            //self.stack.save(context: self.stack.mainContext)
-        //}
-        //self.stack.mainContext.refreshAllObjects()
-        //backgroundContext.refresh(bgRoot._node, mergeChanges: true)
-        //self.stack.persistentContainer.viewContext.refresh(self.root._node, mergeChanges: true)
-            
-        
     }
     
     public func itemProbabilities(after sequence: [Node<Item>]) -> [(probability: Double, item: Node<Item>)] {
-        //print("stack.mainContext.registeredObjects.count:", stack.mainContext.registeredObjects.count)
         return root.itemProbabilities(after: [Node<Item>.root] + sequence)
     }
     
     public func distributions(excluding excludedItems: [Node<Item>]) -> [(probability: Double, item: Node<Item>)] {
-        //print("stack.mainContext.registeredObjects.count:", stack.mainContext.registeredObjects.count)
         return root.distributions(excluding: excludedItems)
     }
 }
@@ -125,10 +111,7 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
     
     internal var count: Double {
         get { return _node.count }
-        set {
-            //print("incrementing count (\(newValue)) for", self.node, self._node.parent?.nodeType)
-            _node.count = newValue
-        }
+        set { _node.count = newValue }
     }
     
     public var childNodes: AnySequence<CoreDataNodeWrapper<Item>> {
@@ -143,9 +126,6 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
     // (which would decrease store size), and after retrieving that literal item instance,
     // check to see if `parents` includes `self`.
     public func findChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item>? {
-        
-        
-        
         return childNodes.first(where: { childWrapper in
             return childWrapper.item(is: item)
         })
@@ -160,7 +140,6 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
         let child = CoreDataNodeWrapper(item: item, in: context)
         //_node.addToChildren(child._node)
         child._node.parent = _node
-        //try! context.save()
         return child
     }
 }
@@ -201,8 +180,6 @@ fileprivate extension CoreDataNode {
             let dict = node.itemDictionaryRepresentation()
             self.itemDictionaryRepresentation = dict
         }
-        //try! context.save()
-        //print("making CoreDataNode for", node)
     }
 }
 
@@ -217,7 +194,6 @@ internal class CoreDataStack {
         context.automaticallyMergesChangesFromParent = true
         context.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
         return context
-        
     }()
     
     lazy var backgroundContext: NSManagedObjectContext = {
@@ -227,7 +203,6 @@ internal class CoreDataStack {
         return context
     }()
     
-    // TODO: Investigate having a read-only store for `itemProbabilities` and `distributions`
     init(identifier storeName: String, fromArchive archivedStore: URL? = nil, inMemory: Bool = false) {
         
         let bundle = Bundle(for: CoreDataStack.self) // check this works as expected in a module
@@ -293,9 +268,7 @@ internal class CoreDataStack {
     }
     
     fileprivate func getRoot<Item>(from context: NSManagedObjectContext) -> CoreDataNodeWrapper<Item> where Item: Hashable, Item: LosslessDictionaryConvertible {
-        let root = fetchExistingRoot(from: context) ?? CoreDataNodeWrapper<Item>(in: context)
-        //save(context: context)
-        return root
+        return fetchExistingRoot(from: context) ?? CoreDataNodeWrapper<Item>(in: context)
     }
     
     func save(context: NSManagedObjectContext) {
@@ -303,9 +276,6 @@ internal class CoreDataStack {
             do {
                 try context.save()
             } catch let error as NSError { fatalError("Unresolved error \(error.description)") } // TODO: Manage error
-        }
-        else {
-            print("no changes to save")
         }
     }
 }
