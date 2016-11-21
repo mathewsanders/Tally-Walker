@@ -8,14 +8,24 @@
 
 import Foundation
 
-public protocol TallyStoreType: class {
+public protocol TallyStoreType {
     
     associatedtype Item: Hashable
     typealias ItemProbability = (probability: Double, item: Node<Item>)
+    typealias Completed = () -> Void
     
     func incrementCount(for sequence: [Node<Item>])
     func itemProbabilities(after sequence: [Node<Item>]) -> [ItemProbability]
     func distributions(excluding excludedItems: [Node<Item>]) -> [ItemProbability]
+    
+    func incrementCount(for sequence: [Node<Item>], completed: Completed?)
+}
+
+extension TallyStoreType {
+    func incrementCount(for sequence: [Node<Item>], completed: Completed?) {
+        incrementCount(for: sequence)
+        completed?()
+    }
 }
 
 // Thunk
@@ -27,15 +37,19 @@ public class AnyTallyStore<Item> where Item: Hashable {
     
     public typealias ItemProbability = (probability: Double, item: Node<Item>)
     public typealias Nodes = [Node<Item>]
+    public typealias Closure = () -> Void
     
     private let _incrementCount: (Nodes) -> Void
     private let _itemProbabilities: (Nodes) -> [ItemProbability]
     private let _distributions: (Nodes) -> [ItemProbability]
     
+    private let _incrementCountWithCompletion: (Nodes, Closure?) -> Void
+    
     public init<Store>(_ store: Store) where Store: TallyStoreType, Store.Item == Item {
         _incrementCount = store.incrementCount
         _itemProbabilities = store.itemProbabilities
         _distributions = store.distributions
+        _incrementCountWithCompletion = store.incrementCount
     }
     
     public func incrementCount(for sequence: Nodes) {
@@ -48,6 +62,10 @@ public class AnyTallyStore<Item> where Item: Hashable {
     
     public func distributions(excluding excludedItems: Nodes = []) -> [ItemProbability] {
         return _distributions(excludedItems)
+    }
+    
+    public func incrementCount(for sequence: Nodes, completed closure: Closure? = nil) {
+        _incrementCountWithCompletion(sequence, closure)
     }
 }
 

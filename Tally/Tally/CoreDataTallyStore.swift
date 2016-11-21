@@ -22,6 +22,10 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     public init(named name: String = "DefaultStore", fillFrom archivedStore: URL? = nil, inMemory: Bool = false) {
         let identifier = CoreDataTallyStore.stackIdentifier(named: name)
         
+        print("identifier:", identifier)
+        print("archivedStore:", archivedStore)
+        print("imMemory:", inMemory)
+        
         self.stack = CoreDataStack(identifier: identifier, fromArchive: archivedStore, inMemory: inMemory)
         self.root = stack.getRoot(from: stack.mainContext)
         self.backgroundRoot = stack.getRoot(from: stack.backgroundContext)
@@ -47,11 +51,16 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     // MARK: TallyStoreType
     
     public func incrementCount(for sequence: [Node<Item>]) {
+        incrementCount(for: sequence, completed: nil)
+    }
+    
+    public func incrementCount(for sequence: [Node<Item>], completed closure: (() -> Void)? = nil) {
         stack.mainContext.refreshAllObjects()
         
         stack.backgroundContext.perform {
             self.backgroundRoot.incrementCount(for: [Node<Item>.root] + sequence)
             self.stack.save(context: self.stack.backgroundContext)
+            closure?()
         }
     }
     

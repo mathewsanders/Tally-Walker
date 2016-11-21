@@ -25,6 +25,7 @@ class TallyTestsCoreDataStore: XCTestCase {
         
         // update model with observations
         let modelItemProbabilitiesAfterHello = model.itemProbabilities(after: "hello")
+        dump(modelItemProbabilitiesAfterHello)
         XCTAssertTrue(modelItemProbabilitiesAfterHello.count == 2, "Unexpected number of probabilities")
         XCTAssertTrue(modelItemProbabilitiesAfterHello[0].probability == 0.5, "Unexpected probability")
         
@@ -37,6 +38,28 @@ class TallyTestsCoreDataStore: XCTestCase {
         let newModelItemProbabilitiesAfterHello = newModel.itemProbabilities(after: "hello")
         XCTAssertTrue(newModelItemProbabilitiesAfterHello.count == 2, "Unexpected number of probabilities")
         XCTAssertTrue(newModelItemProbabilitiesAfterHello[0].probability == 0.5, "Unexpected probability")
+    }
+    
+    func testSimple() {
+        
+        let sequenceExpetation = expectation(description: "Observe sequence")
+        
+        // create a core data store, with an in-memory option (used for testing)
+        let store = CoreDataTallyStore<String>(named: "Test", inMemory: true)
+        
+        // create a model using a CoreData store
+        var model = Tally<String>()
+        model.store = AnyTallyStore(store)
+        model.observe(sequence: ["hello", "world"], completed: {
+            // update model with observations
+            let modelItemProbabilitiesAfterHello = model.itemProbabilities(after: "hello")
+            dump(modelItemProbabilitiesAfterHello)
+            sequenceExpetation.fulfill()
+        })
+        
+        waitForExpectations(timeout: 10) { error in
+            print("took too long")
+        }
     }
     
     /// Create two core data models, distinguished by different names, that operate independently of each other

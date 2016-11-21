@@ -87,6 +87,8 @@ public struct Tally<Item: Hashable> {
     /// - item is a `Node` which may represent a literal item, or a sequence boundary
     public typealias ItemProbability = (probability: Double, item: Node<Item>)
     
+    public typealias Closure = () -> Void
+    
     /// The type of n-gram to use when building the frequency model.
     public let ngram: NgramType
     
@@ -122,14 +124,14 @@ public struct Tally<Item: Hashable> {
     }
     
     /// Start a series of method calls to observe an item from a sequence.
-    public mutating func startSequence() {
+    public mutating func startSequence(completed closure: Closure? = nil) {
         recentlyObserved.removeAll()
-        observe(next: nodeForStart)
+        observe(next: nodeForStart, completed: closure)
     }
     
     /// Conclude a series of method calls to observe an item from a sequence.
-    public mutating func endSequence() {
-        observe(next: nodeForEnd)
+    public mutating func endSequence(completed closure: Closure? = nil) {
+        observe(next: nodeForEnd, completed: closure)
         recentlyObserved.removeAll()
     }
     
@@ -149,8 +151,8 @@ public struct Tally<Item: Hashable> {
     /// // end the sequence
     /// model.endSequence()
     /// ~~~~
-    public mutating func observe(next item: Item) {
-        observe(next: Node.item(item))
+    public mutating func observe(next item: Item, completed closure: Closure? = nil) {
+        observe(next: Node.item(item), completed: closure)
     }
     
     /// Observes a sequence of items.
@@ -158,23 +160,53 @@ public struct Tally<Item: Hashable> {
     /// - parameter items: The sequence of items to observe.
     ///
     /// This method does *not* need to be surrounded by calls to `startSequence()` and `endSequence()`.
-    public mutating func observe(sequence items: [Item]) {
-        startSequence()
+    public mutating func observe(sequence items: [Item], completed closure: Closure? = nil) {
+        
+        let myGroup = DispatchGroup()
+        
+        myGroup.enter()
+        startSequence(completed: {
+            myGroup.leave()
+        })
+        
         items.forEach{ item in
-            observe(next: item)
+            myGroup.enter()
+            observe(next: item, completed: {
+                myGroup.leave()
+            })
         }
-        endSequence()
+        
+        myGroup.enter()
+        endSequence(completed: {
+            myGroup.leave()
+        })
+        
+        myGroup.notify(queue: DispatchQueue.main, execute: {
+            closure?()
+        })
     }
     
-    internal mutating func observe(next node: Node<Item>) {
+    internal mutating func observe(next node: Node<Item>, completed closure: Closure? = nil) {
         
         recentlyObserved.append(node)
         recentlyObserved.clamp(to: ngram.size)
         
+        let myGroup = DispatchGroup()
+        
         for itemIndex in 0..<recentlyObserved.count {
+            
+            myGroup.enter()
+            
             let sequence = recentlyObserved.clamped(by: recentlyObserved.count - itemIndex)
             _store.incrementCount(for: sequence)
+            _store.incrementCount(for: sequence, completed: {
+                myGroup.leave()
+            })
         }
+        
+        myGroup.notify(queue: DispatchQueue.main, execute: {
+            closure?()
+        })
     }
     
     /// Get the overall relative frequencies of individual items in the model.
