@@ -91,7 +91,7 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
     // profiling is showing that this is a bottleneck, especially the initializer
     internal var node: Node<Item> {
         
-        switch self._node.nodeType {
+        switch self._node.itemType {
             
         case .root: return Node<Item>.root
         case .boundaryUnseenLeadingItems: return Node<Item>.unseenLeadingItems
@@ -101,7 +101,7 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
             
         case .item:
             // this is grabbing the transformable property
-            guard let dictionary = self._node.itemDictionaryRepresentation,
+            guard let dictionary = self._node.item?.itemDictionaryRepresentation,
                 let nodeFromDictionary = Node<Item>(itemDictionaryRepresentation: dictionary)
                 else { fatalError("CoreDataNode internal inconsistancy") }
             
@@ -126,6 +126,9 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
     // (which would decrease store size), and after retrieving that literal item instance,
     // check to see if `parents` includes `self`.
     public func findChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item>? {
+        
+        
+        
         return childNodes.first(where: { childWrapper in
             return childWrapper.item(is: item)
         })
@@ -133,7 +136,7 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
     
     // nodeType is cheaper check than unrwapping node, so do this first
     private func item(is node: Node<Item>) -> Bool {
-        return self._node.nodeType == node.nodeType && node == self.node
+        return self._node.itemType == node.itemType && node == self.node
     }
     
     public func makeChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item> {
@@ -148,7 +151,7 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
 
 // TODO: Review if this is a bottleneck
 // http://stackoverflow.com/a/32421787/1060154
-enum CoreDataNodeType: Int {
+enum CoreDataItemType: Int {
     case root = 0
     case boundaryUnseenTrailingItems
     case boundaryUnseenLeadingItems
@@ -157,16 +160,20 @@ enum CoreDataNodeType: Int {
     case item
 }
 
+fileprivate extension CoreDataLiteralItem {
+    
+}
+
 fileprivate extension CoreDataNode {
     
-    var nodeType: CoreDataNodeType {
+    var itemType: CoreDataItemType {
         set {
-            self.nodeTypeInt16RawValue = Int16(exactly: newValue.rawValue)!
+            self.itemTypeInt16Value = Int16(exactly: newValue.rawValue)!
         }
         get {
-            guard let intFromInt16 = Int(exactly: self.nodeTypeInt16RawValue),
-                let type = CoreDataNodeType(rawValue: intFromInt16) else {
-                fatalError("CoreDataNodeType internal representation inconsistancy")
+            guard let intFromInt16 = Int(exactly: self.itemTypeInt16Value),
+                let type = CoreDataItemType(rawValue: intFromInt16) else {
+                    fatalError("CoreDataNodeType internal representation inconsistancy")
             }
             return type
         }
@@ -174,11 +181,16 @@ fileprivate extension CoreDataNode {
     
     convenience init<Item: LosslessDictionaryConvertible>(node: Node<Item>, in context: NSManagedObjectContext) {
         self.init(context: context)
-        self.nodeType = node.nodeType
-        if case .item = node.nodeType {
+        
+        self.itemType = node.itemType
+        if case .item = node.itemType {
+            
             // TODO, if the item is a scalar type, the node could have properties to represent it directly
-            let dict = node.itemDictionaryRepresentation()
-            self.itemDictionaryRepresentation = dict
+            let coreDataItem = CoreDataLiteralItem(context: context)
+            coreDataItem.itemDictionaryRepresentation = node.itemDictionaryRepresentation()
+        
+            self.item = coreDataItem
+            
         }
     }
 }
@@ -312,14 +324,14 @@ public extension LosslessTextConvertible {
 
 fileprivate extension Node where Item: LosslessDictionaryConvertible {
     
-    var nodeType: CoreDataNodeType {
+    var itemType: CoreDataItemType {
         switch self {
-        case .root: return CoreDataNodeType.root
-        case .item: return CoreDataNodeType.item
-        case .sequenceEnd: return CoreDataNodeType.boundarySequenceEnd
-        case .sequenceStart: return CoreDataNodeType.boundarySequenceStart
-        case .unseenLeadingItems: return CoreDataNodeType.boundaryUnseenLeadingItems
-        case .unseenTrailingItems: return CoreDataNodeType.boundaryUnseenTrailingItems
+        case .root: return CoreDataItemType.root
+        case .item: return CoreDataItemType.item
+        case .sequenceEnd: return CoreDataItemType.boundarySequenceEnd
+        case .sequenceStart: return CoreDataItemType.boundarySequenceStart
+        case .unseenLeadingItems: return CoreDataItemType.boundaryUnseenLeadingItems
+        case .unseenTrailingItems: return CoreDataItemType.boundaryUnseenTrailingItems
         }
     }
     
