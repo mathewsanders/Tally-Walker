@@ -25,21 +25,30 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         print("loading....", lines.count)
         let total = Double(lines.count)
-        var count = 1.0
+        var count = 0.0
+        
+        let closureGroup = DispatchGroup()
+        
         for line in lines {
             count += 1
+            let percent = Int(100*(count/total))
+            
             let normalized = normalize(text: line)
             if normalized != "" {
-                let percent = Int(100*(count/total))
                 
                 let words = normalized.components(separatedBy: seperators).filter({ word in return !word.isEmpty })
                 print(percent, words)
-                model.observe(sequence: words)
+                
+                closureGroup.enter()
+                model.observe(sequence: words) {
+                    closureGroup.leave()
+                }
             }
         }
         
-        //store.save()
-        print("...saved")
+        closureGroup.notify(queue: DispatchQueue.main) {
+            print("...all done")
+        }
     }
     
     func array(from fileName: String) -> [String] {

@@ -21,10 +21,10 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     
     public init(named name: String = "DefaultStore", fillFrom archivedStore: URL? = nil, inMemory: Bool = false) {
         let identifier = CoreDataTallyStore.stackIdentifier(named: name)
-        
-        print("identifier:", identifier)
-        print("archivedStore:", archivedStore)
-        print("imMemory:", inMemory)
+        print("CoreDataTallyStore")
+        print("- identifier:", identifier)
+        print("- archivedStore:", archivedStore)
+        print("- inMemory:", inMemory)
         
         self.stack = CoreDataStack(identifier: identifier, fromArchive: archivedStore, inMemory: inMemory)
         self.root = stack.getRoot(from: stack.mainContext)
@@ -135,9 +135,6 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
     // (which would decrease store size), and after retrieving that literal item instance,
     // check to see if `parents` includes `self`.
     public func findChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item>? {
-        
-        
-        
         return childNodes.first(where: { childWrapper in
             return childWrapper.item(is: item)
         })
@@ -199,7 +196,6 @@ fileprivate extension CoreDataNode {
             coreDataItem.itemDictionaryRepresentation = node.itemDictionaryRepresentation()
         
             self.item = coreDataItem
-            
         }
     }
 }
@@ -209,6 +205,7 @@ fileprivate extension CoreDataNode {
 internal class CoreDataStack {
     
     let persistentContainer: NSPersistentContainer
+    private let inMemory: Bool
     
     lazy var mainContext: NSManagedObjectContext = {
         let context = self.persistentContainer.viewContext
@@ -218,10 +215,13 @@ internal class CoreDataStack {
     }()
     
     lazy var backgroundContext: NSManagedObjectContext = {
+        
+        if self.inMemory { return self.mainContext }
+        
         let context = self.persistentContainer.newBackgroundContext()
         context.automaticallyMergesChangesFromParent = true
         context.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
-        return context
+        return context 
     }()
     
     init(identifier storeName: String, fromArchive archivedStore: URL? = nil, inMemory: Bool = false) {
@@ -234,13 +234,14 @@ internal class CoreDataStack {
             let mom = NSManagedObjectModel(contentsOf: modelUrl)
             else { fatalError("Unresolved error") }
         
-        persistentContainer = NSPersistentContainer(name: storeName, managedObjectModel: mom)
+        self.persistentContainer = NSPersistentContainer(name: storeName, managedObjectModel: mom)
+        self.inMemory = inMemory
         
         if inMemory {
             print("Warning: Core Data using NSInMemoryStoreType, changes will not persist, use for testing only")
             let description = NSPersistentStoreDescription()
             description.type = NSInMemoryStoreType
-            persistentContainer.persistentStoreDescriptions = [description]
+            persistentContainer.persistentStoreDescriptions.append(description)
         }
         
         if let storeUrl = archivedStore {
@@ -252,15 +253,14 @@ internal class CoreDataStack {
             if !FileManager.default.fileExists(atPath: documentStoreUrl.path) {
                 do {
                     try FileManager.default.copyItem(at: storeUrl, to: documentStoreUrl)
+                    
+                    let description = NSPersistentStoreDescription(url: documentStoreUrl)
+                    persistentContainer.persistentStoreDescriptions.append(description)
                 }
                 catch let error as NSError {
                     fatalError(error.description)
                 }
             }
-            
-            let description = NSPersistentStoreDescription()
-            description.url = documentStoreUrl
-            persistentContainer.persistentStoreDescriptions = [description]
         }
         
         persistentContainer.loadPersistentStores{ (storeDescription, error) in

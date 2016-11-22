@@ -54,7 +54,11 @@ class PredictiveTextField: UITextField {
     
     func learn(example: String) {
         let sequence = example.trimmingCharacters(in: seperatorCharacters).components(separatedBy: seperatorCharacters)
-        model.observe(sequence: sequence)
+        model.observe(sequence: sequence) {
+            DispatchQueue.main.async {
+                self.updateSuggestions()
+            }
+        }
     }
     
     func updateSuggestions() {

@@ -162,28 +162,29 @@ public struct Tally<Item: Hashable> {
     /// This method does *not* need to be surrounded by calls to `startSequence()` and `endSequence()`.
     public mutating func observe(sequence items: [Item], completed closure: Closure? = nil) {
         
-        let myGroup = DispatchGroup()
+        let closureGroup = DispatchGroup()
         
-        myGroup.enter()
-        startSequence(completed: {
-            myGroup.leave()
-        })
         
-        items.forEach{ item in
-            myGroup.enter()
-            observe(next: item, completed: {
-                myGroup.leave()
-            })
+        closureGroup.enter()
+        startSequence {
+            closureGroup.leave()
         }
         
-        myGroup.enter()
-        endSequence(completed: {
-            myGroup.leave()
-        })
+        items.forEach{ item in
+            closureGroup.enter()
+            observe(next: item) {
+                closureGroup.leave()
+            }
+        }
         
-        myGroup.notify(queue: DispatchQueue.main, execute: {
+        closureGroup.enter()
+        endSequence{
+            closureGroup.leave()
+        }
+        
+        closureGroup.notify(queue: DispatchQueue.global(qos: DispatchQoS.QoSClass.userInteractive)) {
             closure?()
-        })
+        }
     }
     
     internal mutating func observe(next node: Node<Item>, completed closure: Closure? = nil) {
@@ -191,22 +192,20 @@ public struct Tally<Item: Hashable> {
         recentlyObserved.append(node)
         recentlyObserved.clamp(to: ngram.size)
         
-        let myGroup = DispatchGroup()
+        let closureGroup = DispatchGroup()
         
         for itemIndex in 0..<recentlyObserved.count {
-            
-            myGroup.enter()
-            
             let sequence = recentlyObserved.clamped(by: recentlyObserved.count - itemIndex)
-            _store.incrementCount(for: sequence)
-            _store.incrementCount(for: sequence, completed: {
-                myGroup.leave()
-            })
+            
+            closureGroup.enter()
+            _store.incrementCount(for: sequence) {
+                closureGroup.leave()
+            }
         }
         
-        myGroup.notify(queue: DispatchQueue.main, execute: {
+        closureGroup.notify(queue: DispatchQueue.global(qos: DispatchQoS.QoSClass.userInteractive)) {
             closure?()
-        })
+        }
     }
     
     /// Get the overall relative frequencies of individual items in the model.
