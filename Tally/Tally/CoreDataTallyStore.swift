@@ -237,13 +237,6 @@ internal class CoreDataStack {
         self.persistentContainer = NSPersistentContainer(name: storeName, managedObjectModel: mom)
         self.inMemory = inMemory
         
-        if inMemory {
-            print("Warning: Core Data using NSInMemoryStoreType, changes will not persist, use for testing only")
-            let description = NSPersistentStoreDescription()
-            description.type = NSInMemoryStoreType
-            persistentContainer.persistentStoreDescriptions.append(description)
-        }
-        
         if let storeUrl = archivedStore {
             // TODO: Should validate if the resource at the URL is a sqlite resource
             // and that it has an approrpiate model
@@ -254,13 +247,23 @@ internal class CoreDataStack {
                 do {
                     try FileManager.default.copyItem(at: storeUrl, to: documentStoreUrl)
                     
-                    let description = NSPersistentStoreDescription(url: documentStoreUrl)
-                    persistentContainer.persistentStoreDescriptions.append(description)
+                    
                 }
                 catch let error as NSError {
                     fatalError(error.description)
                 }
             }
+            
+            let description = NSPersistentStoreDescription(url: documentStoreUrl)
+            persistentContainer.persistentStoreDescriptions = [description]
+            
+        }
+        
+        if inMemory {
+            print("Warning: Core Data using NSInMemoryStoreType, changes will not persist, use for testing only")
+            let description = NSPersistentStoreDescription()
+            description.type = NSInMemoryStoreType
+            persistentContainer.persistentStoreDescriptions.append(description)
         }
         
         persistentContainer.loadPersistentStores{ (storeDescription, error) in
