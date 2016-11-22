@@ -162,28 +162,37 @@ public struct Tally<Item: Hashable> {
     /// This method does *not* need to be surrounded by calls to `startSequence()` and `endSequence()`.
     public mutating func observe(sequence items: [Item], completed closure: Closure? = nil) {
         
-        let closureGroup = DispatchGroup()
-        
-        
-        closureGroup.enter()
-        startSequence {
-            closureGroup.leave()
-        }
-        
-        items.forEach{ item in
+        if let closure = closure {
+            let closureGroup = DispatchGroup()
+            
             closureGroup.enter()
-            observe(next: item) {
+            startSequence {
                 closureGroup.leave()
             }
+            
+            items.forEach{ item in
+                closureGroup.enter()
+                observe(next: item) {
+                    closureGroup.leave()
+                }
+            }
+            
+            closureGroup.enter()
+            endSequence{
+                closureGroup.leave()
+            }
+            
+            closureGroup.notify(queue: DispatchQueue.global(qos: DispatchQoS.QoSClass.userInteractive)) {
+                closure()
+            }
         }
-        
-        closureGroup.enter()
-        endSequence{
-            closureGroup.leave()
-        }
-        
-        closureGroup.notify(queue: DispatchQueue.global(qos: DispatchQoS.QoSClass.userInteractive)) {
-            closure?()
+        else {
+            startSequence()
+            
+            items.forEach{ item in
+                observe(next: item)
+            }
+            endSequence()
         }
     }
     
@@ -192,19 +201,27 @@ public struct Tally<Item: Hashable> {
         recentlyObserved.append(node)
         recentlyObserved.clamp(to: ngram.size)
         
-        let closureGroup = DispatchGroup()
-        
-        for itemIndex in 0..<recentlyObserved.count {
-            let sequence = recentlyObserved.clamped(by: recentlyObserved.count - itemIndex)
+        if let closure = closure {
+            let closureGroup = DispatchGroup()
             
-            closureGroup.enter()
-            _store.incrementCount(for: sequence) {
-                closureGroup.leave()
+            for itemIndex in 0..<recentlyObserved.count {
+                let sequence = recentlyObserved.clamped(by: recentlyObserved.count - itemIndex)
+                
+                closureGroup.enter()
+                _store.incrementCount(for: sequence) {
+                    closureGroup.leave()
+                }
+            }
+            
+            closureGroup.notify(queue: DispatchQueue.global(qos: DispatchQoS.QoSClass.userInteractive)) {
+                closure()
             }
         }
-        
-        closureGroup.notify(queue: DispatchQueue.global(qos: DispatchQoS.QoSClass.userInteractive)) {
-            closure?()
+        else {
+            for itemIndex in 0..<recentlyObserved.count {
+                let sequence = recentlyObserved.clamped(by: recentlyObserved.count - itemIndex)
+                _store.incrementCount(for: sequence)
+            }
         }
     }
     

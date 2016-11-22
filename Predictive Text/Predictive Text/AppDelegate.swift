@@ -27,8 +27,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let total = Double(lines.count)
         var count = 0.0
         
-        let closureGroup = DispatchGroup()
-        
         for line in lines {
             count += 1
             let percent = Int(100*(count/total))
@@ -39,16 +37,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 let words = normalized.components(separatedBy: seperators).filter({ word in return !word.isEmpty })
                 print(percent, words)
                 
-                closureGroup.enter()
-                model.observe(sequence: words) {
-                    closureGroup.leave()
-                }
+                model.observe(sequence: words)
             }
         }
-        
-        closureGroup.notify(queue: DispatchQueue.main) {
-            print("...all done")
-        }
+        // can take a few minutes for saves to complete
+        // TODO: Investigate if I'm doing something that's slowing down save performance 
     }
     
     func array(from fileName: String) -> [String] {
@@ -65,7 +58,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
-        //loadData()
+        loadData()
         return true
     }
 
