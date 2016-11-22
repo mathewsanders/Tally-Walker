@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="11542" systemVersion="16B2657" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="11232" systemVersion="15G31" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
     <entity name="CoreDataLiteralItem" representedClassName="CoreDataLiteralItem" syncable="YES" codeGenerationType="class">
-        <attribute name="itemBoolValue" optional="YES" attributeType="Boolean" usesScalarValueType="YES" syncable="YES"/>
-        <attribute name="itemDictionaryRepresentation" optional="YES" attributeType="Transformable" customClassName="NSDictionary" syncable="YES"/>
-        <attribute name="itemDoubleValue" optional="YES" attributeType="Double" usesScalarValueType="YES" syncable="YES"/>
-        <attribute name="itemInt16Value" optional="YES" attributeType="Integer 16" usesScalarValueType="YES" syncable="YES"/>
-        <attribute name="itemStringValue" optional="YES" attributeType="String" syncable="YES"/>
-        <relationship name="nodes" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="CoreDataNode" inverseName="item" inverseEntity="CoreDataNode" syncable="YES"/>
+        <attribute name="boolRepresentation" optional="YES" attributeType="Boolean" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="dictionaryRepresentation" optional="YES" attributeType="Transformable" customClassName="NSDictionary" syncable="YES"/>
+        <attribute name="doubleRepresentation" optional="YES" attributeType="Double" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="int16Representation" optional="YES" attributeType="Integer 16" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="stringRepresentation" optional="YES" attributeType="String" syncable="YES"/>
+        <relationship name="nodes" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="CoreDataNode" inverseName="literalItem" inverseEntity="CoreDataNode" syncable="YES"/>
     </entity>
     <entity name="CoreDataNode" representedClassName="CoreDataNode" syncable="YES" codeGenerationType="class">
         <attribute name="count" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
         <attribute name="itemTypeInt16Value" attributeType="Integer 16" usesScalarValueType="YES" syncable="YES"/>
         <relationship name="children" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="CoreDataNode" inverseName="parent" inverseEntity="CoreDataNode" syncable="YES"/>
-        <relationship name="item" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CoreDataLiteralItem" inverseName="nodes" inverseEntity="CoreDataLiteralItem" syncable="YES"/>
+        <relationship name="literalItem" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CoreDataLiteralItem" inverseName="nodes" inverseEntity="CoreDataLiteralItem" syncable="YES"/>
         <relationship name="parent" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CoreDataNode" inverseName="children" inverseEntity="CoreDataNode" syncable="YES"/>
     </entity>
     <elements>
-        <element name="CoreDataNode" positionX="-63" positionY="-18" width="128" height="120"/>
         <element name="CoreDataLiteralItem" positionX="-54" positionY="36" width="128" height="135"/>
+        <element name="CoreDataNode" positionX="-63" positionY="-18" width="128" height="120"/>
     </elements>
 </model>
