@@ -61,12 +61,20 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     }
     
     public func incrementCount(for sequence: [Node<Item>], completed closure: (() -> Void)? = nil) {
-        stack.mainContext.refreshAllObjects()
         
-        stack.backgroundContext.perform {
-            self.backgroundRoot.incrementCount(for: [Node<Item>.root] + sequence)
-            self.stack.save(context: self.stack.backgroundContext)
+        if stack.inMemory {
+            self.root.incrementCount(for: [Node<Item>.root] + sequence)
             closure?()
+        }
+        else {
+            
+            stack.mainContext.refreshAllObjects()
+                    
+            stack.backgroundContext.perform {
+                self.backgroundRoot.incrementCount(for: [Node<Item>.root] + sequence)
+                self.stack.save(context: self.stack.backgroundContext)
+                closure?()
+            }
         }
     }
     
@@ -84,7 +92,7 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
 fileprivate class CoreDataStack {
     
     let persistentContainer: NSPersistentContainer
-    private let inMemory: Bool
+    fileprivate let inMemory: Bool
     
     lazy var mainContext: NSManagedObjectContext = {
         let context = self.persistentContainer.viewContext
@@ -94,9 +102,6 @@ fileprivate class CoreDataStack {
     }()
     
     lazy var backgroundContext: NSManagedObjectContext = {
-        
-        if self.inMemory { return self.mainContext }
-        
         let context = self.persistentContainer.newBackgroundContext()
         context.automaticallyMergesChangesFromParent = true
         context.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
@@ -272,11 +277,10 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
         case .boundarySequenceEnd: return Node<Item>.sequenceEnd
             
         case .literalItem:
-            
             // this is grabbing the transformable property
             guard let lossless = self._node.literalItem?.losslessRepresentation,
                 let item = Item(lossless)
-                else { fatalError("no internal representation") }
+                else { fatalError("no internal representation \(self._node.literalItem?.losslessRepresentation)") }
             
             let node =  Node<Item>.item(item)
             return node
@@ -328,33 +332,22 @@ public enum CoreDataTallyStoreLosslessRepresentation {
     case double(Double)
     case dictionary(NSDictionary)
     
-    init(_ representation: String) {
-        self = .string(representation)
-    }
-    
-    init(_ representation: Int16) {
-        self = .int16(representation)
-    }
-    
-    init(_ representation: Bool) {
-        self = .bool(representation)
-    }
-    
-    init(_ representation: Double) {
-        self = .double(representation)
-    }
-    
-    init(_ representation: NSDictionary) {
-        self = .dictionary(representation)
-    }
-    
     init(_ item: CoreDataLiteralItem) {
         switch item.literalItemType {
-        case .bool: self.init(item.boolRepresentation)
-        case .string: self.init(item.stringRepresentation!)
-        case .double: self.init(item.doubleRepresentation)
-        case .dictionary: self.init(item.dictionaryRepresentation!)
-        case .int16: self.init(item.int16Representation)
+        case .bool:
+            self = .bool(item.boolRepresentation)
+            
+        case .string:
+            self = .string(item.stringRepresentation!)
+            
+        case .double:
+            self = .double(item.doubleRepresentation)
+            
+        case .dictionary:
+            self = .dictionary(item.dictionaryRepresentation!)
+            
+        case .int16:
+            self = .int16(item.int16Representation)
         }
     }
 }

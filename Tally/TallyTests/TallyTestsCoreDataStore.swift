@@ -76,6 +76,7 @@ class TallyTestsCoreDataStore: XCTestCase {
         waitForExpectations(timeout: 1) { _ in
             let modelItemProbabilitiesAfterHello = model.itemProbabilities(after: "hello")
             dump(modelItemProbabilitiesAfterHello)
+            //dump(model.distributions())
         }
     }
     
@@ -147,4 +148,15 @@ class TallyTestsCoreDataStore: XCTestCase {
 
 // Type needs to implement either LosslessTextConvertible, or LosslessDictionaryConvertible to be 
 // used with a CoreDataTallyStore, for String it just needs an empty extension. 
-extension String: LosslessTextConvertible {}
+extension String: LosslessConvertible {
+    public var losslessRepresentation: CoreDataTallyStoreLosslessRepresentation {
+        return .string(self)
+    }
+    
+    public init?(_ representation: CoreDataTallyStoreLosslessRepresentation) {
+        if case let .string(stringValue) = representation {
+            self = stringValue
+        }
+        else { return nil }
+    }
+}
