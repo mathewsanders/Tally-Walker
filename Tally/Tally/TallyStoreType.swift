@@ -22,7 +22,7 @@ public protocol TallyStoreType {
 }
 
 extension TallyStoreType {
-    func incrementCount(for sequence: [Node<Item>], completed: Completed?) {
+    public func incrementCount(for sequence: [Node<Item>], completed: Completed?) {
         incrementCount(for: sequence)
         completed?()
     }

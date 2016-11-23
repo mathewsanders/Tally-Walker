@@ -17,7 +17,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func loadData() {
         
-        let store = CoreDataTallyStore<String>(named: "Long", inMemory: false)
+        let store = CoreDataTallyStore<String>(named: "Long")
         var model = Tally<String>(representing: .continuousSequence, ngram: .bigram)
         model.store = AnyTallyStore(store)
         

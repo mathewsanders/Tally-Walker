@@ -18,7 +18,7 @@ class TallyTestsCoreDataStore: XCTestCase {
         let closureGroup = DispatchGroup()
         
         // create a core data store, with an in-memory option (used for testing)
-        let store = CoreDataTallyStore<String>(inMemory: true)
+        let store = CoreDataTallyStore<String>()
         
         // create a model using a CoreData store
         var model = Tally<String>()
@@ -62,7 +62,7 @@ class TallyTestsCoreDataStore: XCTestCase {
         let closureExpectation = expectation(description: "Closure")
         
         // create a core data store, with an in-memory option (used for testing)
-        let store = CoreDataTallyStore<String>(named: "Test", inMemory: false)
+        let store = CoreDataTallyStore<String>(named: "Test")
         
         // create a model using a CoreData store
         var model = Tally<String>()
@@ -87,7 +87,7 @@ class TallyTestsCoreDataStore: XCTestCase {
         
         let closureGroup = DispatchGroup()
         
-        let birdStore = CoreDataTallyStore<String>(named: "Birds", inMemory: true)
+        let birdStore = CoreDataTallyStore<String>(named: "Birds")
         var birdModel = Tally<String>()
         birdModel.store = AnyTallyStore(birdStore)
         
@@ -96,7 +96,7 @@ class TallyTestsCoreDataStore: XCTestCase {
             closureGroup.leave()
         }
         
-        let carStore = CoreDataTallyStore<String>(named: "Cars", inMemory: true)
+        let carStore = CoreDataTallyStore<String>(named: "Cars")
         var carModel = Tally<String>()
         carModel.store = AnyTallyStore(carStore)
         

@@ -26,7 +26,7 @@ class PredictiveTextField: UITextField {
     
     let seperatorCharacters = CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters)
     
-    var store: CoreDataTallyStore<String>
+    let store: AnyTallyStore<String>
     var model: Tally<String>
     
     private var contextualInputAccessoryView: InputAccessoryView?
@@ -46,11 +46,11 @@ class PredictiveTextField: UITextField {
             print("could not load coredata archive")
             return nil
         }
-        store = CoreDataTallyStore<String>(named: "PredictiveModel", fillFrom: .sqliteStore(at: archiveUrl))
+        store = AnyTallyStore(CoreDataTallyStore<String>(named: "PredictiveModel", fillFrom: .sqliteStore(at: archiveUrl)))
         
         // set up model
         model = Tally(representing: TallySequenceType.continuousSequence, ngram: .bigram)
-        model.store = AnyTallyStore(store)
+        model.store = store
         
         super.init(coder: aDecoder)
         

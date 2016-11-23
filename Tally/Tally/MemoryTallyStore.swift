@@ -8,11 +8,11 @@
 
 import Foundation
 
-internal class MemoryTallyStore<Item>: TallyStoreType where Item: Hashable {
+public class MemoryTallyStore<Item>: TallyStoreType where Item: Hashable {
     
     private var root: MemoryNode<Item>
     
-    init() {
+    public init() {
         self.root = MemoryNode(withItem: .root)
     }
     

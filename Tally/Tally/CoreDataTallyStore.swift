@@ -45,14 +45,13 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
         return "Tally.CoreDataStore." + name
     }
     
-    public init(named name: String = "DefaultStore", fillFrom archive: CoreDataArchiveType? = nil, inMemory: Bool = false) {
+    public init(named name: String = "DefaultStore", fillFrom archive: CoreDataArchiveType? = nil) {
         let identifier = CoreDataTallyStore.stackIdentifier(named: name)
         print("CoreDataTallyStore")
         print("- identifier:", identifier)
         print("- fillFrom:", archive as Any)
-        print("- inMemory:", inMemory)
         
-        self.stack = CoreDataStack(identifier: identifier, fromArchive: archive, inMemory: inMemory)
+        self.stack = CoreDataStack(identifier: identifier, fromArchive: archive)
         self.root = stack.getRoot(from: stack.mainContext)
         
         stack.save(context: stack.mainContext)
@@ -89,19 +88,12 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     
     public func incrementCount(for sequence: [Node<Item>], completed closure: (() -> Void)? = nil) {
         
-        if stack.inMemory {
-            self.root.incrementCount(for: [Node<Item>.root] + sequence)
+        stack.mainContext.refreshAllObjects()
+                
+        stack.backgroundContext.perform {
+            self.backgroundRoot.incrementCount(for: [Node<Item>.root] + sequence)
+            self.stack.save(context: self.stack.backgroundContext)
             closure?()
-        }
-        else {
-            
-            stack.mainContext.refreshAllObjects()
-                    
-            stack.backgroundContext.perform {
-                self.backgroundRoot.incrementCount(for: [Node<Item>.root] + sequence)
-                self.stack.save(context: self.stack.backgroundContext)
-                closure?()
-            }
         }
     }
     
@@ -119,7 +111,6 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
 fileprivate class CoreDataStack {
     
     let persistentContainer: NSPersistentContainer
-    fileprivate let inMemory: Bool
     
     lazy var mainContext: NSManagedObjectContext = {
         let context = self.persistentContainer.viewContext
@@ -135,7 +126,7 @@ fileprivate class CoreDataStack {
         return context
     }()
     
-    init(identifier storeName: String, fromArchive archive: CoreDataArchiveType? = nil, inMemory: Bool = false) {
+    init(identifier storeName: String, fromArchive archive: CoreDataArchiveType? = nil) {
         
         let bundle = Bundle(for: CoreDataStack.self) // check this works as expected in a module
         
@@ -146,7 +137,6 @@ fileprivate class CoreDataStack {
             else { fatalError("Unresolved error") }
         
         self.persistentContainer = NSPersistentContainer(name: storeName, managedObjectModel: mom)
-        self.inMemory = inMemory
         
         if let archive = archive {
             
@@ -172,13 +162,6 @@ fileprivate class CoreDataStack {
             
             let description = NSPersistentStoreDescription(url: storeUrl)
             persistentContainer.persistentStoreDescriptions = [description]
-        }
-        
-        if inMemory {
-            print("Warning: Core Data using NSInMemoryStoreType, changes will not persist, use for testing only")
-            let description = NSPersistentStoreDescription()
-            description.type = NSInMemoryStoreType
-            persistentContainer.persistentStoreDescriptions.append(description)
         }
         
         persistentContainer.loadPersistentStores{ (storeDescription, error) in
