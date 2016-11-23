@@ -11,32 +11,11 @@ import CoreData
 
 /// A representation of a Type with internal property keys and values mapped to a NSDictionary that can be used in store
 public protocol LosslessConvertible {
-    
-    associatedtype LosslessRepresentation
-    
-    init?(_: LosslessRepresentation)
-    func losslessRepresentation() -> LosslessRepresentation
+    init?(_: CoreDataTallyStoreLosslessRepresentation)
+    var losslessRepresentation: CoreDataTallyStoreLosslessRepresentation { get }
 }
 
-/// Types that can be used to represent an item
-public protocol CoreDataValidProperty {}
-extension String: CoreDataValidProperty {}
-extension NSDictionary: CoreDataValidProperty {}
-extension Double: CoreDataValidProperty {}
-//extension Bool: CoreDataValidProperty {}
-
-// TODO: Review if this is a bottleneck
-// http://stackoverflow.com/a/32421787/1060154
-enum CoreDataItemType: Int {
-    case root = 0
-    case boundaryUnseenTrailingItems
-    case boundaryUnseenLeadingItems
-    case boundarySequenceStart
-    case boundarySequenceEnd
-    case item
-}
-
-public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item: LosslessConvertible, Item.LosslessRepresentation: CoreDataValidProperty {
+public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item: LosslessConvertible {
         
     private var stack: CoreDataStack
     private var root: CoreDataNodeWrapper<Item>
@@ -50,7 +29,7 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
         let identifier = CoreDataTallyStore.stackIdentifier(named: name)
         print("CoreDataTallyStore")
         print("- identifier:", identifier)
-        print("- archivedStore:", archivedStore)
+        print("- archivedStore:", archivedStore as Any)
         print("- inMemory:", inMemory)
         
         self.stack = CoreDataStack(identifier: identifier, fromArchive: archivedStore, inMemory: inMemory)
@@ -100,172 +79,9 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     }
 }
 
-// MARK: - Node<Item> extension
-
-fileprivate extension Node where Item: LosslessConvertible {
-    
-    var itemType: CoreDataItemType {
-        switch self {
-        case .item: return CoreDataItemType.item
-            
-        case .root: return CoreDataItemType.root
-        case .sequenceEnd: return CoreDataItemType.boundarySequenceEnd
-        case .sequenceStart: return CoreDataItemType.boundarySequenceStart
-        case .unseenLeadingItems: return CoreDataItemType.boundaryUnseenLeadingItems
-        case .unseenTrailingItems: return CoreDataItemType.boundaryUnseenTrailingItems
-        }
-    }
-
-    init?(losslessRepresentation: Item.LosslessRepresentation) {
-        guard let item = Item(losslessRepresentation)
-            else { return nil }
-        
-        self = Node<Item>.item(item)
-    }
-}
-
-// MARK: - TallyStoreNodeType
-
-// can not extend NSManangedOjbect as a generic type, so using this as a wrapper
-fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Hashable, Item: LosslessConvertible, Item.LosslessRepresentation: CoreDataValidProperty {
-    
-    fileprivate var _node: CoreDataNode
-    private var context: NSManagedObjectContext
-    
-    init(node: CoreDataNode, in context: NSManagedObjectContext) {
-        self._node = node
-        self.context = context
-    }
-    
-    init(in context: NSManagedObjectContext) {
-        let root = CoreDataNode(node: Node<Item>.root, in: context)
-        root.count = 1.0
-        self.init(node: root, in: context)
-    }
-    
-    init(item: Node<Item>, in context: NSManagedObjectContext) {
-        let node = CoreDataNode(node: item, in: context)
-        self.init(node: node, in: context)
-    }
-    
-    
-    internal var count: Double {
-        get { return _node.count }
-        set { _node.count = newValue }
-    }
-    
-    public var childNodes: AnySequence<CoreDataNodeWrapper<Item>> {
-        guard let childrenSet = _node.children as? Set<CoreDataNode> else {
-            let empty: [CoreDataNodeWrapper<Item>] = []
-            return AnySequence(empty)
-        }
-        return AnySequence(childrenSet.lazy.map{ return CoreDataNodeWrapper(node: $0, in: self.context) })
-    }
-    
-    // TODO: Investigate if node literal values could be stored independently
-    // (which would decrease store size), and after retrieving that literal item instance,
-    // check to see if `parents` includes `self`.
-    public func findChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item>? {
-        return childNodes.first(where: { childWrapper in
-            return childWrapper.item(is: item)
-        })
-    }
-    
-    // nodeType is cheaper check than unrwapping node, so do this first
-    private func item(is node: Node<Item>) -> Bool {
-        return self._node.itemType == node.itemType && node == self.node
-    }
-    
-    public func makeChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item> {
-        let child = CoreDataNodeWrapper(item: item, in: context)
-        //_node.addToChildren(child._node)
-        child._node.parent = _node
-        return child
-    }
-    
-    // profiling is showing that this is a bottleneck, especially the initializer
-    internal var node: Node<Item> {
-        
-        switch self._node.itemType {
-            
-        case .root: return Node<Item>.root
-        case .boundaryUnseenLeadingItems: return Node<Item>.unseenLeadingItems
-        case .boundaryUnseenTrailingItems: return Node<Item>.unseenTrailingItems
-        case .boundarySequenceStart: return Node<Item>.sequenceStart
-        case .boundarySequenceEnd: return Node<Item>.sequenceEnd
-            
-        case .item:
-            // this is grabbing the transformable property
-            
-            if let representation = _node.literalItem?.stringRepresentation as? Item.LosslessRepresentation,
-                let node = Node<Item>(losslessRepresentation: representation) {
-                return node
-            }
-            
-            if let representation = _node.literalItem?.doubleRepresentation as? Item.LosslessRepresentation,
-                let node = Node<Item>(losslessRepresentation: representation) {
-                return node
-            }
-            
-            if let representation = _node.literalItem?.dictionaryRepresentation as? Item.LosslessRepresentation,
-                let node = Node<Item>(losslessRepresentation: representation) {
-                return node
-            }
-            
-            fatalError("CoreDataNode internal inconsistancy")
-        }
-    }
-    
-}
-
-// MARK: - CoreDataNode Helper
-
-fileprivate extension CoreDataNode {
-    
-    convenience init<Item: LosslessConvertible>(node: Node<Item>, in context: NSManagedObjectContext) {
-        self.init(context: context)
-        
-        self.itemType = node.itemType
-        if case .item = node.itemType {
-            
-            // TODO, if the item is a scalar type, the node could have properties to represent it directly
-            let coreDataItem = CoreDataLiteralItem(context: context)
-            
-            switch node.item?.losslessRepresentation() {
-            
-            case let representation as String:
-                coreDataItem.stringRepresentation = representation
-                
-            case let representation as Double:
-                coreDataItem.doubleRepresentation = representation
-                
-            case let representation as NSDictionary:
-                coreDataItem.dictionaryRepresentation = representation
-                
-            default:
-                fatalError("CoreDataNode, losslessRepresentation not supported")
-            }
-            self.literalItem = coreDataItem
-        }
-    }
-    
-    var itemType: CoreDataItemType {
-        set {
-            self.itemTypeInt16Value = Int16(exactly: newValue.rawValue)!
-        }
-        get {
-            guard let intFromInt16 = Int(exactly: self.itemTypeInt16Value),
-                let type = CoreDataItemType(rawValue: intFromInt16) else {
-                    fatalError("CoreDataNodeType internal representation inconsistancy")
-            }
-            return type
-        }
-    }
-}
-
 // MARK: - CoreDataStack
 
-internal class CoreDataStack {
+fileprivate class CoreDataStack {
     
     let persistentContainer: NSPersistentContainer
     private let inMemory: Bool
@@ -284,7 +100,7 @@ internal class CoreDataStack {
         let context = self.persistentContainer.newBackgroundContext()
         context.automaticallyMergesChangesFromParent = true
         context.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
-        return context 
+        return context
     }()
     
     init(identifier storeName: String, fromArchive archivedStore: URL? = nil, inMemory: Bool = false) {
@@ -361,6 +177,232 @@ internal class CoreDataStack {
                 try context.save()
             } catch let error as NSError { fatalError("Unresolved error \(error.description)") } // TODO: Manage error
         }
+    }
+}
+
+// TODO: Review if this is a bottleneck
+// http://stackoverflow.com/a/32421787/1060154
+fileprivate enum CoreDataItemType: Int {
+    case root = 0
+    case boundaryUnseenTrailingItems
+    case boundaryUnseenLeadingItems
+    case boundarySequenceStart
+    case boundarySequenceEnd
+    case literalItem
+}
+
+// MARK: - Node<Item> extension
+
+fileprivate extension Node where Item: LosslessConvertible {
+    
+    var itemType: CoreDataItemType {
+        switch self {
+        case .item: return CoreDataItemType.literalItem
+        case .root: return CoreDataItemType.root
+        case .sequenceEnd: return CoreDataItemType.boundarySequenceEnd
+        case .sequenceStart: return CoreDataItemType.boundarySequenceStart
+        case .unseenLeadingItems: return CoreDataItemType.boundaryUnseenLeadingItems
+        case .unseenTrailingItems: return CoreDataItemType.boundaryUnseenTrailingItems
+        }
+    }
+}
+
+// MARK: - TallyStoreNodeType
+
+// can not extend NSManangedOjbect as a generic type, so using this as a wrapper
+fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Hashable, Item: LosslessConvertible {
+    
+    fileprivate var _node: CoreDataNode
+    private var context: NSManagedObjectContext
+    
+    init(node: CoreDataNode, in context: NSManagedObjectContext) {
+        self._node = node
+        self.context = context
+    }
+    
+    init(in context: NSManagedObjectContext) {
+        let root = CoreDataNode(node: Node<Item>.root, in: context)
+        self.init(node: root, in: context)
+    }
+    
+    init(item: Node<Item>, in context: NSManagedObjectContext) {
+        let node = CoreDataNode(node: item, in: context)
+        self.init(node: node, in: context)
+    }
+    
+    internal var count: Double {
+        get { return _node.count }
+        set { _node.count = newValue }
+    }
+    
+    public var childNodes: AnySequence<CoreDataNodeWrapper<Item>> {
+        guard let childrenSet = _node.children as? Set<CoreDataNode> else {
+            let empty: [CoreDataNodeWrapper<Item>] = []
+            return AnySequence(empty)
+        }
+        return AnySequence(childrenSet.lazy.map{ return CoreDataNodeWrapper(node: $0, in: self.context) })
+    }
+    
+    public func findChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item>? {
+        return childNodes.first(where: { childWrapper in
+            return childWrapper.item(is: item)
+        })
+    }
+    
+    // nodeType is cheaper check than unrwapping node, so do this first
+    private func item(is node: Node<Item>) -> Bool {
+        return self._node.itemType == node.itemType && node == self.node
+    }
+    
+    public func makeChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item> {
+        let child = CoreDataNodeWrapper(item: item, in: context)
+        //_node.addToChildren(child._node)
+        child._node.parent = _node
+        return child
+    }
+    
+    // profiling is showing that this is a bottleneck, especially the initializer
+    internal var node: Node<Item> {
+        
+        switch self._node.itemType {
+        case .root: return Node<Item>.root
+        case .boundaryUnseenLeadingItems: return Node<Item>.unseenLeadingItems
+        case .boundaryUnseenTrailingItems: return Node<Item>.unseenTrailingItems
+        case .boundarySequenceStart: return Node<Item>.sequenceStart
+        case .boundarySequenceEnd: return Node<Item>.sequenceEnd
+            
+        case .literalItem:
+            
+            // this is grabbing the transformable property
+            guard let lossless = self._node.literalItem?.losslessRepresentation,
+                let item = Item(lossless)
+                else { fatalError("no internal representation") }
+            
+            let node =  Node<Item>.item(item)
+            return node
+        }
+    }
+}
+
+// MARK: - CoreDataNode Helper
+
+fileprivate extension CoreDataNode {
+    
+    convenience init<Item: LosslessConvertible>(node: Node<Item>, in context: NSManagedObjectContext) {
+        self.init(context: context)
+        
+        self.itemType = node.itemType
+        
+        if let losslessRepresentation = node.item?.losslessRepresentation {
+            self.literalItem = CoreDataLiteralItem(with: losslessRepresentation, in: context)
+        }
+    }
+    
+    var itemType: CoreDataItemType {
+        set {
+            self.itemTypeInt16Value = Int16(exactly: newValue.rawValue)!
+        }
+        get {
+            guard let intFromInt16 = Int(exactly: self.itemTypeInt16Value),
+                let type = CoreDataItemType(rawValue: intFromInt16) else {
+                    fatalError("CoreDataNodeType internal representation inconsistancy")
+            }
+            return type
+        }
+    }
+}
+
+fileprivate enum CoreDataLiteralItemType: Int {
+    case string = 0
+    case bool
+    case int16
+    case double
+    case dictionary
+}
+
+public enum CoreDataTallyStoreLosslessRepresentation {
+    
+    case string(String)
+    case bool(Bool)
+    case int16(Int16)
+    case double(Double)
+    case dictionary(NSDictionary)
+    
+    init(_ representation: String) {
+        self = .string(representation)
+    }
+    
+    init(_ representation: Int16) {
+        self = .int16(representation)
+    }
+    
+    init(_ representation: Bool) {
+        self = .bool(representation)
+    }
+    
+    init(_ representation: Double) {
+        self = .double(representation)
+    }
+    
+    init(_ representation: NSDictionary) {
+        self = .dictionary(representation)
+    }
+    
+    init(_ item: CoreDataLiteralItem) {
+        switch item.literalItemType {
+        case .bool: self.init(item.boolRepresentation)
+        case .string: self.init(item.stringRepresentation!)
+        case .double: self.init(item.doubleRepresentation)
+        case .dictionary: self.init(item.dictionaryRepresentation!)
+        case .int16: self.init(item.int16Representation)
+        }
+    }
+}
+
+fileprivate extension CoreDataLiteralItem {
+    
+    convenience init(with losslessRepresentation: CoreDataTallyStoreLosslessRepresentation, in context: NSManagedObjectContext) {
+        
+        self.init(context: context)
+        
+        switch losslessRepresentation {
+        case .bool(let representation):
+            literalItemType = .bool
+            boolRepresentation = representation
+            
+        case .string(let repersentation):
+            literalItemType = .string
+            stringRepresentation = repersentation
+            
+        case .double(let representation):
+            literalItemType = .double
+            doubleRepresentation = representation
+            
+        case .int16(let representation):
+            literalItemType = .int16
+            int16Representation = representation
+            
+        case .dictionary(let representation):
+            literalItemType = .dictionary
+            dictionaryRepresentation = representation
+        }
+    }
+    
+    var literalItemType: CoreDataLiteralItemType {
+        set {
+            self.literalItemTypeInt16Value = Int16(exactly: newValue.rawValue)!
+        }
+        get {
+            guard let intFromInt16 = Int(exactly: self.literalItemTypeInt16Value),
+                let type = CoreDataLiteralItemType(rawValue: intFromInt16) else {
+                    fatalError("CoreDataLiteralItem internal representation inconsistancy")
+            }
+            return type
+        }
+    }
+    
+    var losslessRepresentation: CoreDataTallyStoreLosslessRepresentation {
+        return CoreDataTallyStoreLosslessRepresentation(self)
     }
 }
 

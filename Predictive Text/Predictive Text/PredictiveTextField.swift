@@ -10,8 +10,15 @@ import UIKit
 import Tally
 
 extension String: LosslessConvertible {
-    public func losslessRepresentation() -> String {
-        return self
+    public var losslessRepresentation: CoreDataTallyStoreLosslessRepresentation {
+        return .string(self)
+    }
+    
+    public init?(_ representation: CoreDataTallyStoreLosslessRepresentation) {
+        if case let .string(stringValue) = representation {
+            self = stringValue
+        }
+        else { return nil }
     }
 }
 
@@ -35,9 +42,9 @@ class PredictiveTextField: UITextField {
     required init?(coder aDecoder: NSCoder) {
         
         // set up store
-        guard let archivedStore = Bundle.main.url(forResource: "Dorian-Gray-smart", withExtension: "sqlite") else { return nil }
-        store = CoreDataTallyStore<String>(named: "PredictiveTextModelStore", fillFrom: archivedStore)
-        //store = CoreDataTallyStore<String>(named: "PredictiveTextModelStore")
+        guard let archivedStore = Bundle.main.url(forResource: "Dorian-Gray-compact", withExtension: "sqlite") else { return nil }
+        //store = CoreDataTallyStore<String>(named: "PredictiveTextModelStore", fillFrom: archivedStore)
+        store = CoreDataTallyStore<String>(named: "PredictiveTextModelStore")
         
         // set up model
         model = Tally(representing: TallySequenceType.continuousSequence, ngram: .bigram)

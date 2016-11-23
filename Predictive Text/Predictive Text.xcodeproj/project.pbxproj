@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		4084DBA31DE4F87E0049E249 /* Dorian-Gray-smart.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = 4084DBA21DE4F87E0049E249 /* Dorian-Gray-smart.sqlite */; };
 		AF1797951DD7A7D600D45737 /* Tally.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF1797921DD7A7CA00D45737 /* Tally.framework */; };
 		AF1797991DD7A87600D45737 /* PredictiveTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF1797961DD7A87600D45737 /* PredictiveTextField.swift */; };
 		AF17979A1DD7A87600D45737 /* PredictiveTextField+Classes.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF1797971DD7A87600D45737 /* PredictiveTextField+Classes.swift */; };
@@ -19,6 +18,7 @@
 		AFC342581DE0F8F000E80911 /* The-Picture-of-Dorian-Gray-short.txt in Resources */ = {isa = PBXBuildFile; fileRef = AFC342571DE0F8EF00E80911 /* The-Picture-of-Dorian-Gray-short.txt */; };
 		AFE702F11DE0022B00E952E6 /* The-Picture-of-Dorian-Gray.txt in Resources */ = {isa = PBXBuildFile; fileRef = AFE702F01DE0022B00E952E6 /* The-Picture-of-Dorian-Gray.txt */; };
 		AFE702F81DE00BFB00E952E6 /* Dorian-Gray.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = AFE702F71DE00BFB00E952E6 /* Dorian-Gray.sqlite */; };
+		AFF5D2971DE521D8001D0EF5 /* Dorian-Gray-compact.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = AFF5D2961DE521D8001D0EF5 /* Dorian-Gray-compact.sqlite */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -39,7 +39,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		4084DBA21DE4F87E0049E249 /* Dorian-Gray-smart.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Dorian-Gray-smart.sqlite"; sourceTree = "<group>"; };
 		AF17978C1DD7A7CA00D45737 /* Tally.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Tally.xcodeproj; path = ../Tally/Tally.xcodeproj; sourceTree = "<group>"; };
 		AF1797961DD7A87600D45737 /* PredictiveTextField.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PredictiveTextField.swift; sourceTree = "<group>"; };
 		AF1797971DD7A87600D45737 /* PredictiveTextField+Classes.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "PredictiveTextField+Classes.swift"; sourceTree = "<group>"; };
@@ -53,6 +52,7 @@
 		AFC342571DE0F8EF00E80911 /* The-Picture-of-Dorian-Gray-short.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "The-Picture-of-Dorian-Gray-short.txt"; sourceTree = "<group>"; };
 		AFE702F01DE0022B00E952E6 /* The-Picture-of-Dorian-Gray.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "The-Picture-of-Dorian-Gray.txt"; sourceTree = "<group>"; };
 		AFE702F71DE00BFB00E952E6 /* Dorian-Gray.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Dorian-Gray.sqlite"; sourceTree = "<group>"; };
+		AFF5D2961DE521D8001D0EF5 /* Dorian-Gray-compact.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Dorian-Gray-compact.sqlite"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -103,7 +103,7 @@
 				AFE702F01DE0022B00E952E6 /* The-Picture-of-Dorian-Gray.txt */,
 				AFC342571DE0F8EF00E80911 /* The-Picture-of-Dorian-Gray-short.txt */,
 				AFE702F71DE00BFB00E952E6 /* Dorian-Gray.sqlite */,
-				4084DBA21DE4F87E0049E249 /* Dorian-Gray-smart.sqlite */,
+				AFF5D2961DE521D8001D0EF5 /* Dorian-Gray-compact.sqlite */,
 				AF80BC051DD7A6160016C182 /* Main.storyboard */,
 				AF80BC081DD7A6160016C182 /* Assets.xcassets */,
 				AF80BC0A1DD7A6160016C182 /* LaunchScreen.storyboard */,
@@ -198,10 +198,10 @@
 				AFE702F11DE0022B00E952E6 /* The-Picture-of-Dorian-Gray.txt in Resources */,
 				AF80BC0C1DD7A6160016C182 /* LaunchScreen.storyboard in Resources */,
 				AF80BC091DD7A6160016C182 /* Assets.xcassets in Resources */,
+				AFF5D2971DE521D8001D0EF5 /* Dorian-Gray-compact.sqlite in Resources */,
 				AFE702F81DE00BFB00E952E6 /* Dorian-Gray.sqlite in Resources */,
 				AF80BC071DD7A6160016C182 /* Main.storyboard in Resources */,
 				AFC342581DE0F8F000E80911 /* The-Picture-of-Dorian-Gray-short.txt in Resources */,
-				4084DBA31DE4F87E0049E249 /* Dorian-Gray-smart.sqlite in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
