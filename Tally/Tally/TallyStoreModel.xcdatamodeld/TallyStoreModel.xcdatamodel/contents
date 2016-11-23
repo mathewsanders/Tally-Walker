@@ -8,6 +8,20 @@
         <attribute name="literalItemTypeInt16Value" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES" syncable="YES"/>
         <attribute name="stringRepresentation" optional="YES" attributeType="String" syncable="YES"/>
         <relationship name="nodes" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="CoreDataNode" inverseName="literalItem" inverseEntity="CoreDataNode" syncable="YES"/>
+        <uniquenessConstraints>
+            <uniquenessConstraint>
+                <constraint value="doubleRepresentation"/>
+            </uniquenessConstraint>
+            <uniquenessConstraint>
+                <constraint value="stringRepresentation"/>
+            </uniquenessConstraint>
+            <uniquenessConstraint>
+                <constraint value="int16Representation"/>
+            </uniquenessConstraint>
+            <uniquenessConstraint>
+                <constraint value="boolRepresentation"/>
+            </uniquenessConstraint>
+        </uniquenessConstraints>
     </entity>
     <entity name="CoreDataNode" representedClassName="CoreDataNode" syncable="YES" codeGenerationType="class">
         <attribute name="count" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
