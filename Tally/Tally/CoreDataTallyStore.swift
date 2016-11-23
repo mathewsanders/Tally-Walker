@@ -15,6 +15,26 @@ public protocol LosslessConvertible {
     var losslessRepresentation: CoreDataTallyStoreLosslessRepresentation { get }
 }
 
+public enum CoreDataArchiveType {
+    
+    case binaryStore(at: URL)
+    case sqliteStore(at: URL)
+    
+    var storeType: String {
+        switch self {
+        case .binaryStore: return NSBinaryStoreType
+        case .sqliteStore: return NSSQLiteStoreType
+        }
+    }
+    
+    var url: URL {
+        switch self {
+        case .binaryStore(let url): return url
+        case .sqliteStore(let url): return url
+        }
+    }
+}
+
 public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item: LosslessConvertible {
         
     private var stack: CoreDataStack
@@ -25,32 +45,39 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
         return "Tally.CoreDataStore." + name
     }
     
-    public init(named name: String = "DefaultStore", fillFrom archivedStore: URL? = nil, inMemory: Bool = false) {
+    public init(named name: String = "DefaultStore", fillFrom archive: CoreDataArchiveType? = nil, inMemory: Bool = false) {
         let identifier = CoreDataTallyStore.stackIdentifier(named: name)
         print("CoreDataTallyStore")
         print("- identifier:", identifier)
-        print("- archivedStore:", archivedStore as Any)
+        print("- fillFrom:", archive as Any)
         print("- inMemory:", inMemory)
         
-        self.stack = CoreDataStack(identifier: identifier, fromArchive: archivedStore, inMemory: inMemory)
+        self.stack = CoreDataStack(identifier: identifier, fromArchive: archive, inMemory: inMemory)
         self.root = stack.getRoot(from: stack.mainContext)
-        self.backgroundRoot = stack.getRoot(from: stack.backgroundContext)
+        
+        stack.save(context: stack.mainContext)
+        
+        // ughhh
+        let obj = stack.backgroundContext.object(with: root._node.objectID) as! CoreDataNode
+        self.backgroundRoot = CoreDataNodeWrapper<Item>(node: obj, in: stack.backgroundContext)
+
+        //self.backgroundRoot = stack.getRoot(from: stack.backgroundContext, and: rootId)
     }
     
     deinit {
         self.stack.save(context: stack.mainContext)
     }
     
-    // TODO: Explore if `migratePersistentStore` is needed to extract a store to be later imported
-    // Also check to see if -shm and -wal files need to be included.
-    public func archive(to name: String) throws {
+    // TODO: After migrating to a sqlite archive, is it safe to only use the .sqlite file to restore?
+    // If sqlite is chosen as the archive type, might need to manaully turn off wal option 
+    // (which would need to be mirrored in the stack initilization)
+    // see: https://developer.apple.com/library/content/qa/qa1809/_index.html
+    // see: https://developer.apple.com/library/content/documentation/Cocoa/Conceptual/CoreData/PersistentStoreFeatures.html
+    // see: http://stackoverflow.com/questions/20969996/is-it-safe-to-delete-sqlites-wal-file
+    public func archive(as archiveType: CoreDataArchiveType) throws {
         
-        if let currentStore = self.stack.persistentContainer.persistentStoreCoordinator.persistentStores.last,
-            let documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-            
-            let newLocation = documentDirectory.appendingPathComponent(name).appendingPathExtension("sqlite")
-                
-            try self.stack.persistentContainer.persistentStoreCoordinator.migratePersistentStore(currentStore, to: newLocation, options: nil, withType: NSSQLiteStoreType)
+        if let currentStore = self.stack.persistentContainer.persistentStoreCoordinator.persistentStores.last {
+            try self.stack.persistentContainer.persistentStoreCoordinator.migratePersistentStore(currentStore, to: archiveType.url, options: nil, withType: archiveType.storeType)
         }
     }
     
@@ -108,7 +135,7 @@ fileprivate class CoreDataStack {
         return context
     }()
     
-    init(identifier storeName: String, fromArchive archivedStore: URL? = nil, inMemory: Bool = false) {
+    init(identifier storeName: String, fromArchive archive: CoreDataArchiveType? = nil, inMemory: Bool = false) {
         
         let bundle = Bundle(for: CoreDataStack.self) // check this works as expected in a module
         
@@ -121,22 +148,29 @@ fileprivate class CoreDataStack {
         self.persistentContainer = NSPersistentContainer(name: storeName, managedObjectModel: mom)
         self.inMemory = inMemory
         
-        if let storeUrl = archivedStore {
-            // TODO: Should validate if the resource at the URL is a sqlite resource
-            // and that it has an approrpiate model
+        if let archive = archive {
             
-            let documentStoreUrl = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent(storeName).appendingPathExtension("sqlite")
+            let storeUrl = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent(storeName).appendingPathExtension("sqlite")
             
-            if !FileManager.default.fileExists(atPath: documentStoreUrl.path) {
-                do {
-                    try FileManager.default.copyItem(at: storeUrl, to: documentStoreUrl)
-                }
-                catch let error as NSError {
-                    fatalError(error.description)
-                }
+            if !FileManager.default.fileExists(atPath: storeUrl.path) {
+                
+                let archiveContainer = NSPersistentContainer(name: "ArchiveContainer", managedObjectModel: mom)
+                
+                let archiveDescription = NSPersistentStoreDescription(url: archive.url)
+                archiveDescription.type = archive.storeType
+                
+                archiveContainer.persistentStoreDescriptions = [archiveDescription]
+                archiveContainer.loadPersistentStores(completionHandler: { (storeDescription, error) in
+                    
+                    if let error = error { fatalError("Unresolved error \(error)") } // TODO: Manage error
+                    
+                    if let archiveStore = archiveContainer.persistentStoreCoordinator.persistentStores.last {
+                        try! archiveContainer.persistentStoreCoordinator.migratePersistentStore(archiveStore, to: storeUrl, options: nil, withType: NSSQLiteStoreType)
+                    }
+                })
             }
             
-            let description = NSPersistentStoreDescription(url: documentStoreUrl)
+            let description = NSPersistentStoreDescription(url: storeUrl)
             persistentContainer.persistentStoreDescriptions = [description]
         }
         
@@ -163,6 +197,7 @@ fileprivate class CoreDataStack {
         
         do {
             let rootItems = try context.fetch(request)
+            
             guard rootItems.count == 1,
                 let rootItem = rootItems.first
                 else { return nil }

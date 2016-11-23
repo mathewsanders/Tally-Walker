@@ -133,7 +133,7 @@ class TallyTestsCoreDataStore: XCTestCase {
             return
         }
         
-        let store = CoreDataTallyStore<String>(named: "ABC", fillFrom: storeUrl)
+        let store = CoreDataTallyStore<String>(named: "ABC", fillFrom: .sqliteStore(at: storeUrl))
         var model = Tally<String>()
         model.store = AnyTallyStore(store)
         

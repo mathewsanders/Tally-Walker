@@ -8,6 +8,7 @@
 
 import UIKit
 import Tally
+import CoreData
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -16,16 +17,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func loadData() {
         
-        let store = CoreDataTallyStore<String>(named: "Dorian-Gray")
+        let store = CoreDataTallyStore<String>(named: "Long", inMemory: false)
         var model = Tally<String>(representing: .continuousSequence, ngram: .bigram)
         model.store = AnyTallyStore(store)
         
-        let lines = array(from: "The-Picture-of-Dorian-Gray")
+        let lines = array(from: "training-data")
         let seperators = CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters)
         
         print("loading....", lines.count)
         let total = Double(lines.count)
         var count = 0.0
+        
+        let progressGroup = DispatchGroup()
         
         for line in lines {
             count += 1
@@ -37,11 +40,27 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 let words = normalized.components(separatedBy: seperators).filter({ word in return !word.isEmpty })
                 print(percent, words)
                 
-                model.observe(sequence: words)
+                progressGroup.enter()
+                model.observe(sequence: words) {
+                    progressGroup.leave()
+                }
             }
         }
+        
         // can take a few minutes for saves to complete
-        // TODO: Investigate if I'm doing something that's slowing down save performance 
+        // TODO: Investigate if I'm doing something that's slowing down save performance
+        progressGroup.notify(queue: DispatchQueue.main) {
+            print("Finished observations, making archive")
+            
+            let archiveUrl = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent("training").appendingPathExtension("archive")
+            try! store.archive(as: .sqliteStore(at: archiveUrl))
+        }
+    }
+    
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
+        // Override point for customization after application launch.
+        //loadData()
+        return true
     }
     
     func array(from fileName: String) -> [String] {
@@ -54,12 +73,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func normalize(text: String) -> String {
         return text.lowercased().trimmingCharacters(in: CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters))
-    }
-
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
-        //loadData()
-        return true
     }
 
     func applicationWillResignActive(_ application: UIApplication) {

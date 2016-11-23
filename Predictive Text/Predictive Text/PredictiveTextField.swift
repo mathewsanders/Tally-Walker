@@ -42,11 +42,11 @@ class PredictiveTextField: UITextField {
     required init?(coder aDecoder: NSCoder) {
         
         // set up store
-        guard let archivedStore = Bundle.main.url(forResource: "Dorian-Gray", withExtension: "sqlite") else {
-            print("could not load sqlite archive bundle")
+        guard let archiveUrl = Bundle.main.url(forResource: "training", withExtension: "archive") else {
+            print("could not load coredata archive")
             return nil
         }
-        store = CoreDataTallyStore<String>(named: "PredictiveTextModelStore", fillFrom: archivedStore)
+        store = CoreDataTallyStore<String>(named: "PredictiveModel", fillFrom: .sqliteStore(at: archiveUrl))
         
         // set up model
         model = Tally(representing: TallySequenceType.continuousSequence, ngram: .bigram)
