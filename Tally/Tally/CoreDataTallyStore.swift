@@ -15,12 +15,18 @@ public protocol LosslessConvertible {
     var losslessRepresentation: CoreDataTallyStoreLosslessRepresentation { get }
 }
 
-public enum CoreDataArchiveType {
+enum CoreDataTallyStoreError: Error {
+    case missingModelObjectModel
+    case noStoreToArchive
+    case save(NSError)
+}
+
+public enum CoreDataStoreInformation {
     
     case binaryStore(at: URL)
     case sqliteStore(at: URL)
     
-    var storeType: String {
+    var type: String {
         switch self {
         case .binaryStore: return NSBinaryStoreType
         case .sqliteStore: return NSSQLiteStoreType
@@ -33,38 +39,40 @@ public enum CoreDataArchiveType {
         case .sqliteStore(let url): return url
         }
     }
+    
+    var description: NSPersistentStoreDescription {
+        let archiveDescription = NSPersistentStoreDescription(url: url)
+        archiveDescription.type = type
+        return archiveDescription
+    }
 }
+
+// MARK: - CoreDataTallyStore
 
 public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item: LosslessConvertible {
         
     private var stack: CoreDataStack
-    private var root: CoreDataNodeWrapper<Item>
+    private var mainRoot: CoreDataNodeWrapper<Item>
     private var backgroundRoot: CoreDataNodeWrapper<Item>
     
-    static func stackIdentifier(named name: String) -> String {
-        return "Tally.CoreDataStore." + name
+    public init(named name: String = "DefaultStore", fillFrom archive: CoreDataStoreInformation? = nil) throws {
+        
+        self.stack = try CoreDataStack(storeName: name, fromArchive: archive)
+        
+        let root: CoreDataNodeWrapper<Item> = stack.getRoot(from: stack.mainContext)
+        let rootNode = stack.backgroundContext.object(with: root._node.objectID) as? CoreDataNode ?? root._node
+        try self.stack.save(context: stack.mainContext)
+        
+        self.mainRoot = root
+        self.backgroundRoot = CoreDataNodeWrapper<Item>(node: rootNode, in: stack.backgroundContext)
     }
     
-    public init(named name: String = "DefaultStore", fillFrom archive: CoreDataArchiveType? = nil) {
-        let identifier = CoreDataTallyStore.stackIdentifier(named: name)
-        print("CoreDataTallyStore")
-        print("- identifier:", identifier)
-        print("- fillFrom:", archive as Any)
-        
-        self.stack = CoreDataStack(identifier: identifier, fromArchive: archive)
-        self.root = stack.getRoot(from: stack.mainContext)
-        
-        stack.save(context: stack.mainContext)
-        
-        // ughhh
-        let obj = stack.backgroundContext.object(with: root._node.objectID) as! CoreDataNode
-        self.backgroundRoot = CoreDataNodeWrapper<Item>(node: obj, in: stack.backgroundContext)
-
-        //self.backgroundRoot = stack.getRoot(from: stack.backgroundContext, and: rootId)
+    public func save() {
+        try! self.stack.save(context: stack.mainContext)
     }
     
     deinit {
-        self.stack.save(context: stack.mainContext)
+        save()
     }
     
     // TODO: After migrating to a sqlite archive, is it safe to only use the .sqlite file to restore?
@@ -73,36 +81,34 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     // see: https://developer.apple.com/library/content/qa/qa1809/_index.html
     // see: https://developer.apple.com/library/content/documentation/Cocoa/Conceptual/CoreData/PersistentStoreFeatures.html
     // see: http://stackoverflow.com/questions/20969996/is-it-safe-to-delete-sqlites-wal-file
-    public func archive(as archiveType: CoreDataArchiveType) throws {
+    public func archive(as archiveType: CoreDataStoreInformation) throws {
+        guard let currentStore = self.stack.storeContainer.persistentStoreCoordinator.persistentStores.first
+            else { throw CoreDataTallyStoreError.noStoreToArchive }
         
-        if let currentStore = self.stack.persistentContainer.persistentStoreCoordinator.persistentStores.last {
-            try self.stack.persistentContainer.persistentStoreCoordinator.migratePersistentStore(currentStore, to: archiveType.url, options: nil, withType: archiveType.storeType)
-        }
+        try self.stack.storeContainer.persistentStoreCoordinator.migratePersistentStore(currentStore, to: archiveType.url, options: nil, withType: archiveType.type)
     }
     
     // MARK: TallyStoreType
-    
     public func incrementCount(for sequence: [Node<Item>]) {
         incrementCount(for: sequence, completed: nil)
     }
     
     public func incrementCount(for sequence: [Node<Item>], completed closure: (() -> Void)? = nil) {
+        stack.mainContext.refreshAllObjects() // TODO: Understand what this does, and if it's needed
         
-        stack.mainContext.refreshAllObjects()
-                
         stack.backgroundContext.perform {
             self.backgroundRoot.incrementCount(for: [Node<Item>.root] + sequence)
-            self.stack.save(context: self.stack.backgroundContext)
+            try! self.stack.save(context: self.stack.backgroundContext)
             closure?()
         }
     }
     
     public func itemProbabilities(after sequence: [Node<Item>]) -> [(probability: Double, item: Node<Item>)] {
-        return root.itemProbabilities(after: [Node<Item>.root] + sequence)
+        return mainRoot.itemProbabilities(after: [Node<Item>.root] + sequence)
     }
     
     public func distributions(excluding excludedItems: [Node<Item>]) -> [(probability: Double, item: Node<Item>)] {
-        return root.distributions(excluding: excludedItems)
+        return mainRoot.distributions(excluding: excludedItems)
     }
 }
 
@@ -110,64 +116,53 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
 
 fileprivate class CoreDataStack {
     
-    let persistentContainer: NSPersistentContainer
+    let storeContainer: NSPersistentContainer
+    let mainContext: NSManagedObjectContext
+    let backgroundContext: NSManagedObjectContext
     
-    lazy var mainContext: NSManagedObjectContext = {
-        let context = self.persistentContainer.viewContext
-        context.automaticallyMergesChangesFromParent = true
-        context.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
-        return context
-    }()
-    
-    lazy var backgroundContext: NSManagedObjectContext = {
-        let context = self.persistentContainer.newBackgroundContext()
-        context.automaticallyMergesChangesFromParent = true
-        context.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
-        return context
-    }()
-    
-    init(identifier storeName: String, fromArchive archive: CoreDataArchiveType? = nil) {
+    init(storeName: String, fromArchive archive: CoreDataStoreInformation? = nil) throws {
         
-        let bundle = Bundle(for: CoreDataStack.self) // check this works as expected in a module
+        // location for the sqlite store
+        let storeUrl = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent(storeName).appendingPathExtension("sqlite")
+        let store: CoreDataStoreInformation = .sqliteStore(at: storeUrl)
         
-        // TODO: Investigate option for creating model in code rather than as a resource
-        // especially if this allows for the NSManagedObject subclasses to be automatically generated
-        guard let modelUrl = bundle.url(forResource: "TallyStoreModel", withExtension: "momd"),
-            let mom = NSManagedObjectModel(contentsOf: modelUrl)
-            else { fatalError("Unresolved error") }
+        // load the mom
+        guard let momUrl = Bundle(for: CoreDataStack.self).url(forResource: "TallyStoreModel", withExtension: "momd"),
+            let mom = NSManagedObjectModel(contentsOf: momUrl)
+            else { throw CoreDataTallyStoreError.missingModelObjectModel }
         
-        self.persistentContainer = NSPersistentContainer(name: storeName, managedObjectModel: mom)
+        var storeLoadError: Error?
         
+        // request to load store with contents of an achived store
         if let archive = archive {
             
-            let storeUrl = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent(storeName).appendingPathExtension("sqlite")
-            
-            if !FileManager.default.fileExists(atPath: storeUrl.path) {
+            // if the store already exists, then don't import from the archive
+            if !FileManager.default.fileExists(atPath: store.url.path) {
                 
+                // initalize archive container and load
                 let archiveContainer = NSPersistentContainer(name: "ArchiveContainer", managedObjectModel: mom)
+                archiveContainer.persistentStoreDescriptions = [archive.description]
+                archiveContainer.loadPersistentStores { _, error in storeLoadError = error }
                 
-                let archiveDescription = NSPersistentStoreDescription(url: archive.url)
-                archiveDescription.type = archive.storeType
+                // migrate the archive to the sqlite location
+                guard let archivedStore = archiveContainer.persistentStoreCoordinator.persistentStores.first, storeLoadError == nil
+                    else { throw storeLoadError! }
                 
-                archiveContainer.persistentStoreDescriptions = [archiveDescription]
-                archiveContainer.loadPersistentStores(completionHandler: { (storeDescription, error) in
-                    
-                    if let error = error { fatalError("Unresolved error \(error)") } // TODO: Manage error
-                    
-                    if let archiveStore = archiveContainer.persistentStoreCoordinator.persistentStores.last {
-                        try! archiveContainer.persistentStoreCoordinator.migratePersistentStore(archiveStore, to: storeUrl, options: nil, withType: NSSQLiteStoreType)
-                    }
-                })
+                try archiveContainer.persistentStoreCoordinator.migratePersistentStore(archivedStore, to: store.url, options: nil, withType: store.type)
             }
-            
-            let description = NSPersistentStoreDescription(url: storeUrl)
-            persistentContainer.persistentStoreDescriptions = [description]
         }
         
-        persistentContainer.loadPersistentStores{ (storeDescription, error) in
-            print(storeDescription)
-            if let error = error { fatalError("Unresolved error \(error)") } // TODO: Manage error
-        }
+        // initalize store container and load
+        storeContainer = NSPersistentContainer(name: storeName, managedObjectModel: mom)
+        storeContainer.persistentStoreDescriptions = [store.description]
+        storeContainer.loadPersistentStores { _, error in storeLoadError = error }
+        
+        guard let _ = storeContainer.persistentStoreCoordinator.persistentStores.first, storeLoadError == nil
+            else { throw storeLoadError! }
+        
+        // initalize contexts
+        mainContext = CoreDataStack.configure(context: storeContainer.viewContext)
+        backgroundContext = CoreDataStack.configure(context: storeContainer.newBackgroundContext())
     }
     
     private func fetchExistingRoot<Item>(from context: NSManagedObjectContext) -> CoreDataNodeWrapper<Item>? where Item: Hashable, Item: LosslessConvertible {
@@ -180,9 +175,7 @@ fileprivate class CoreDataStack {
         
         do {
             let rootItems = try context.fetch(request)
-            
-            guard rootItems.count == 1,
-                let rootItem = rootItems.first
+            guard let rootItem = rootItems.first
                 else { return nil }
             
             return CoreDataNodeWrapper<Item>(node: rootItem, in: context)
@@ -194,43 +187,20 @@ fileprivate class CoreDataStack {
         return fetchExistingRoot(from: context) ?? CoreDataNodeWrapper<Item>(in: context)
     }
     
-    func save(context: NSManagedObjectContext) {
+    fileprivate func save(context: NSManagedObjectContext) throws {
         if context.hasChanges {
-            do {
-                try context.save()
-            } catch let error as NSError { fatalError("Unresolved error \(error.description)") } // TODO: Manage error
+            try context.save()
         }
     }
-}
-
-// TODO: Review if this is a bottleneck
-// http://stackoverflow.com/a/32421787/1060154
-fileprivate enum CoreDataItemType: Int {
-    case root = 0
-    case boundaryUnseenTrailingItems
-    case boundaryUnseenLeadingItems
-    case boundarySequenceStart
-    case boundarySequenceEnd
-    case literalItem
-}
-
-// MARK: - Node<Item> extension
-
-fileprivate extension Node where Item: LosslessConvertible {
     
-    var itemType: CoreDataItemType {
-        switch self {
-        case .item: return CoreDataItemType.literalItem
-        case .root: return CoreDataItemType.root
-        case .sequenceEnd: return CoreDataItemType.boundarySequenceEnd
-        case .sequenceStart: return CoreDataItemType.boundarySequenceStart
-        case .unseenLeadingItems: return CoreDataItemType.boundaryUnseenLeadingItems
-        case .unseenTrailingItems: return CoreDataItemType.boundaryUnseenTrailingItems
-        }
+    static func configure(context: NSManagedObjectContext) -> NSManagedObjectContext {
+        context.automaticallyMergesChangesFromParent = true
+        context.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
+        return context
     }
 }
 
-// MARK: - TallyStoreNodeType
+// MARK: - CoreDataNodeWrapper
 
 // can not extend NSManangedOjbect as a generic type, so using this as a wrapper
 fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Hashable, Item: LosslessConvertible {
@@ -253,12 +223,12 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
         self.init(node: node, in: context)
     }
     
-    internal var count: Double {
+    var count: Double {
         get { return _node.count }
         set { _node.count = newValue }
     }
     
-    public var childNodes: AnySequence<CoreDataNodeWrapper<Item>> {
+    var childNodes: AnySequence<CoreDataNodeWrapper<Item>> {
         guard let childrenSet = _node.children as? Set<CoreDataNode> else {
             let empty: [CoreDataNodeWrapper<Item>] = []
             return AnySequence(empty)
@@ -266,9 +236,9 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
         return AnySequence(childrenSet.lazy.map{ return CoreDataNodeWrapper(node: $0, in: self.context) })
     }
     
-    public func findChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item>? {
-        return childNodes.first(where: { childWrapper in
-            return childWrapper.item(is: item)
+    func findChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item>? {
+        return childNodes.first(where: { childNode in
+            return childNode.item(is: item)
         })
     }
     
@@ -277,15 +247,14 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
         return self._node.itemType == node.itemType && node == self.node
     }
     
-    public func makeChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item> {
+    func makeChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item> {
         let child = CoreDataNodeWrapper(item: item, in: context)
-        //_node.addToChildren(child._node)
         child._node.parent = _node
         return child
     }
     
     // profiling is showing that this is a bottleneck, especially the initializer
-    internal var node: Node<Item> {
+    var node: Node<Item> {
         
         switch self._node.itemType {
         case .root: return Node<Item>.root
@@ -295,18 +264,28 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
         case .boundarySequenceEnd: return Node<Item>.sequenceEnd
             
         case .literalItem:
-            // this is grabbing the transformable property
-            guard let lossless = self._node.literalItem?.losslessRepresentation,
-                let item = Item(lossless)
-                else { fatalError("no internal representation \(self._node.literalItem?.losslessRepresentation)") }
+            // grab the lossless representation of the literal item, this could involve expensive transformable property
+            let losslessRepresentation = self._node.literalItem?.losslessRepresentation
+            guard let lossless = losslessRepresentation, let item = Item(lossless)
+                else { fatalError("CoreDataNodeWrapper internal inconsistancy \(losslessRepresentation)") }
             
-            let node =  Node<Item>.item(item)
-            return node
+            return Node<Item>.item(item)
         }
     }
 }
 
-// MARK: - CoreDataNode Helper
+// MARK: - NSManagedObject (CoreDataNode)
+
+// TODO: Review if this is a bottleneck
+// http://stackoverflow.com/a/32421787/1060154
+fileprivate enum CoreDataItemType: Int16 {
+    case root = 0
+    case boundaryUnseenTrailingItems
+    case boundaryUnseenLeadingItems
+    case boundarySequenceStart
+    case boundarySequenceEnd
+    case literalItem
+}
 
 fileprivate extension CoreDataNode {
     
@@ -321,20 +300,19 @@ fileprivate extension CoreDataNode {
     }
     
     var itemType: CoreDataItemType {
-        set {
-            self.itemTypeInt16Value = Int16(exactly: newValue.rawValue)!
-        }
+        set { itemTypeInt16Value = newValue.rawValue }
         get {
-            guard let intFromInt16 = Int(exactly: self.itemTypeInt16Value),
-                let type = CoreDataItemType(rawValue: intFromInt16) else {
-                    fatalError("CoreDataNodeType internal representation inconsistancy")
-            }
+            guard let type = CoreDataItemType(rawValue: itemTypeInt16Value)
+                else { fatalError("CoreDataNode internal inconsistancy \(itemTypeInt16Value)") }
+            
             return type
         }
     }
 }
 
-fileprivate enum CoreDataLiteralItemType: Int {
+// MARK: - NSManagedObject (CoreDataLiteralItem)
+
+fileprivate enum CoreDataLiteralItemType: Int16 {
     case string = 0
     case bool
     case int16
@@ -352,20 +330,11 @@ public enum CoreDataTallyStoreLosslessRepresentation {
     
     init(_ item: CoreDataLiteralItem) {
         switch item.literalItemType {
-        case .bool:
-            self = .bool(item.boolRepresentation)
-            
-        case .string:
-            self = .string(item.stringRepresentation!)
-            
-        case .double:
-            self = .double(item.doubleRepresentation)
-            
-        case .dictionary:
-            self = .dictionary(item.dictionaryRepresentation!)
-            
-        case .int16:
-            self = .int16(item.int16Representation)
+        case .bool: self = .bool(item.boolRepresentation)
+        case .string: self = .string(item.stringRepresentation!)
+        case .double: self = .double(item.doubleRepresentation)
+        case .int16: self = .int16(item.int16Representation)
+        case .dictionary: self = .dictionary(item.dictionaryRepresentation!)
         }
     }
 }
@@ -400,14 +369,11 @@ fileprivate extension CoreDataLiteralItem {
     }
     
     var literalItemType: CoreDataLiteralItemType {
-        set {
-            self.literalItemTypeInt16Value = Int16(exactly: newValue.rawValue)!
-        }
+        set { literalItemTypeInt16Value = newValue.rawValue }
         get {
-            guard let intFromInt16 = Int(exactly: self.literalItemTypeInt16Value),
-                let type = CoreDataLiteralItemType(rawValue: intFromInt16) else {
-                    fatalError("CoreDataLiteralItem internal representation inconsistancy")
-            }
+            guard let type = CoreDataLiteralItemType(rawValue: literalItemTypeInt16Value)
+                else { fatalError("CoreDataLiteralItem internal inconsistancy \(literalItemTypeInt16Value)") }
+            
             return type
         }
     }
@@ -417,3 +383,18 @@ fileprivate extension CoreDataLiteralItem {
     }
 }
 
+// MARK: - Node<Item> extension
+
+fileprivate extension Node where Item: LosslessConvertible {
+    
+    var itemType: CoreDataItemType {
+        switch self {
+        case .item: return CoreDataItemType.literalItem
+        case .root: return CoreDataItemType.root
+        case .sequenceEnd: return CoreDataItemType.boundarySequenceEnd
+        case .sequenceStart: return CoreDataItemType.boundarySequenceStart
+        case .unseenLeadingItems: return CoreDataItemType.boundaryUnseenLeadingItems
+        case .unseenTrailingItems: return CoreDataItemType.boundaryUnseenTrailingItems
+        }
+    }
+}

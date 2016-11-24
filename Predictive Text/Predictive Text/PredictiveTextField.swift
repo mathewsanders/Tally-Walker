@@ -43,10 +43,17 @@ class PredictiveTextField: UITextField {
         
         // set up store
         guard let archiveUrl = Bundle.main.url(forResource: "training", withExtension: "archive") else {
-            print("could not load coredata archive")
+            print("could not load coredata archive from bundle")
             return nil
         }
-        store = AnyTallyStore(CoreDataTallyStore<String>(named: "PredictiveModel", fillFrom: .sqliteStore(at: archiveUrl)))
+        
+        do {
+            store = try AnyTallyStore(CoreDataTallyStore<String>(named: "PredictiveModel", fillFrom: .sqliteStore(at: archiveUrl)))
+        }
+        catch let error {
+            print(error)
+            return nil
+        }
         
         // set up model
         model = Tally(representing: TallySequenceType.continuousSequence, ngram: .bigram)

@@ -17,7 +17,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func loadData() {
         
-        let store = CoreDataTallyStore<String>(named: "Long")
+        let store = try! CoreDataTallyStore<String>(named: "Long")
         var model = Tally<String>(representing: .continuousSequence, ngram: .bigram)
         model.store = AnyTallyStore(store)
         
@@ -50,6 +50,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // can take a few minutes for saves to complete
         // TODO: Investigate if I'm doing something that's slowing down save performance
         progressGroup.notify(queue: DispatchQueue.main) {
+            
             print("Finished observations, making archive")
             
             let archiveUrl = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent("training").appendingPathExtension("archive")
