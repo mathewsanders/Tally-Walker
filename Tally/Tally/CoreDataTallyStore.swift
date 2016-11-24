@@ -26,6 +26,11 @@ public enum CoreDataStoreInformation {
     case binaryStore(at: URL)
     case sqliteStore(at: URL)
     
+    public init(defaultSqliteStoreNamed name: String) {
+        let url = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent(name).appendingPathExtension("sqlite")
+        self = .sqliteStore(at: url)
+    }
+    
     var type: String {
         switch self {
         case .binaryStore: return NSBinaryStoreType
@@ -45,6 +50,26 @@ public enum CoreDataStoreInformation {
         archiveDescription.type = type
         return archiveDescription
     }
+    
+    public func destroyExistingPersistantStoreAndFiles() throws {
+        
+        // sqlite stores are truncated, not deleted
+        let psc = NSPersistentStoreCoordinator(managedObjectModel: NSManagedObjectModel())
+        try psc.destroyPersistentStore(at: url, ofType: type, options: nil)
+        
+        if case .sqliteStore = self {
+            // attempt to delete sqlite file and assocaited -wal and -shm files
+            try deleteFileIfExists(fileUrl: url)
+            try deleteFileIfExists(fileUrl: url.appendingToPathExtension("-wal"))
+            try deleteFileIfExists(fileUrl: url.appendingToPathExtension("-shm"))
+        }
+    }
+    
+    private func deleteFileIfExists(fileUrl: URL) throws {
+        if FileManager.default.fileExists(atPath: fileUrl.path) && FileManager.default.isDeletableFile(atPath: fileUrl.path) {
+            try FileManager.default.removeItem(at: fileUrl)
+        }
+    }
 }
 
 // MARK: - CoreDataTallyStore
@@ -55,16 +80,28 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     private var mainRoot: CoreDataNodeWrapper<Item>
     private var backgroundRoot: CoreDataNodeWrapper<Item>
     
-    public init(named name: String = "DefaultStore", fillFrom archive: CoreDataStoreInformation? = nil) throws {
+    public init(store: CoreDataStoreInformation, fillFrom archive: CoreDataStoreInformation? = nil) throws {
         
-        self.stack = try CoreDataStack(storeName: name, fromArchive: archive)
+        self.stack = try CoreDataStack(store: store, fromArchive: archive)
         
+        // Get the root node on the main context (attempt fetch, then create new) and save so that objectID is stable
         let root: CoreDataNodeWrapper<Item> = stack.getRoot(from: stack.mainContext)
-        let rootNode = stack.backgroundContext.object(with: root._node.objectID) as? CoreDataNode ?? root._node
         try self.stack.save(context: stack.mainContext)
         
+        // Copy the root node from the main context into the background context
+        // TODO: use launch argument `com.apple.CoreData.ConcurrencyDebug`, invesatigate if below is safe
+        // also: `obtainPermanentIDs(for: [NSManagedObject])` and `existingObject(with: NSManagedObjectID)`
+        // see: https://medium.com/bpxl-craft/some-lessons-learned-on-core-data-5f095ecb1882#.mzee3j5vf
+        let rootNode = stack.backgroundContext.object(with: root._node.objectID) as? CoreDataNode ?? root._node
+        
+        // Assign main root, and background root
         self.mainRoot = root
         self.backgroundRoot = CoreDataNodeWrapper<Item>(node: rootNode, in: stack.backgroundContext)
+    }
+    
+    public convenience init(named name: String = "DefaultStore", fillFrom archive: CoreDataStoreInformation? = nil) throws {
+        let storeInformation = CoreDataStoreInformation(defaultSqliteStoreNamed: name)
+        try self.init(store: storeInformation, fillFrom: archive)
     }
     
     public func save() {
@@ -81,11 +118,13 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     // see: https://developer.apple.com/library/content/qa/qa1809/_index.html
     // see: https://developer.apple.com/library/content/documentation/Cocoa/Conceptual/CoreData/PersistentStoreFeatures.html
     // see: http://stackoverflow.com/questions/20969996/is-it-safe-to-delete-sqlites-wal-file
-    public func archive(as archiveType: CoreDataStoreInformation) throws {
+    // TODO: Explore using VACUUM for sqlite stores.  
+    public func archive(as archiveStore: CoreDataStoreInformation) throws {
+        
         guard let currentStore = self.stack.storeContainer.persistentStoreCoordinator.persistentStores.first
             else { throw CoreDataTallyStoreError.noStoreToArchive }
         
-        try self.stack.storeContainer.persistentStoreCoordinator.migratePersistentStore(currentStore, to: archiveType.url, options: nil, withType: archiveType.type)
+        try self.stack.storeContainer.persistentStoreCoordinator.migratePersistentStore(currentStore, to: archiveStore.url, options: nil, withType: archiveStore.type)
     }
     
     // MARK: TallyStoreType
@@ -120,12 +159,8 @@ fileprivate class CoreDataStack {
     let mainContext: NSManagedObjectContext
     let backgroundContext: NSManagedObjectContext
     
-    init(storeName: String, fromArchive archive: CoreDataStoreInformation? = nil) throws {
-        
-        // location for the sqlite store
-        let storeUrl = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent(storeName).appendingPathExtension("sqlite")
-        let store: CoreDataStoreInformation = .sqliteStore(at: storeUrl)
-        
+    init(store: CoreDataStoreInformation, fromArchive archive: CoreDataStoreInformation? = nil) throws {
+
         // load the mom
         guard let momUrl = Bundle(for: CoreDataStack.self).url(forResource: "TallyStoreModel", withExtension: "momd"),
             let mom = NSManagedObjectModel(contentsOf: momUrl)
@@ -145,7 +180,7 @@ fileprivate class CoreDataStack {
                 archiveContainer.loadPersistentStores { _, error in storeLoadError = error }
                 
                 // migrate the archive to the sqlite location
-                guard let archivedStore = archiveContainer.persistentStoreCoordinator.persistentStores.first, storeLoadError == nil
+                guard let archivedStore = archiveContainer.persistentStoreCoordinator.persistentStore(for: archive.url), storeLoadError == nil
                     else { throw storeLoadError! }
                 
                 try archiveContainer.persistentStoreCoordinator.migratePersistentStore(archivedStore, to: store.url, options: nil, withType: store.type)
@@ -153,11 +188,14 @@ fileprivate class CoreDataStack {
         }
         
         // initalize store container and load
-        storeContainer = NSPersistentContainer(name: storeName, managedObjectModel: mom)
+        storeContainer = NSPersistentContainer(name: "StoreContainer", managedObjectModel: mom)
         storeContainer.persistentStoreDescriptions = [store.description]
-        storeContainer.loadPersistentStores { _, error in storeLoadError = error }
+        storeContainer.loadPersistentStores { description, error in
+            storeLoadError = error
+            print(description)
+        }
         
-        guard let _ = storeContainer.persistentStoreCoordinator.persistentStores.first, storeLoadError == nil
+        guard let _ = storeContainer.persistentStoreCoordinator.persistentStore(for: store.url), storeLoadError == nil
             else { throw storeLoadError! }
         
         // initalize contexts
@@ -169,13 +207,13 @@ fileprivate class CoreDataStack {
         
         // look for root by fetching node with no parent
         let request: NSFetchRequest<CoreDataNode> = CoreDataNode.fetchRequest()
-        request.fetchLimit = 1
+        request.fetchLimit = 2 // there should only be a single root, but set limit to 2 so we can do a sanity check
         request.predicate = NSPredicate(format: "parent = nil")
-        request.relationshipKeyPathsForPrefetching = ["children"]
+        request.relationshipKeyPathsForPrefetching = ["children"] // TODO: Profile to see if this still have an impact
         
         do {
             let rootItems = try context.fetch(request)
-            guard let rootItem = rootItems.first
+            guard let rootItem = rootItems.first, rootItems.count == 1
                 else { return nil }
             
             return CoreDataNodeWrapper<Item>(node: rootItem, in: context)
@@ -249,7 +287,8 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
     
     func makeChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item> {
         let child = CoreDataNodeWrapper(item: item, in: context)
-        child._node.parent = _node
+        _node.addToChildren(child._node)
+        //child._node.parent = _node
         return child
     }
     
@@ -396,5 +435,12 @@ fileprivate extension Node where Item: LosslessConvertible {
         case .unseenLeadingItems: return CoreDataItemType.boundaryUnseenLeadingItems
         case .unseenTrailingItems: return CoreDataItemType.boundaryUnseenTrailingItems
         }
+    }
+}
+
+fileprivate extension URL {
+    func appendingToPathExtension(_ string: String) -> URL {
+        let pathExtension = self.pathExtension + string
+        return self.deletingPathExtension().appendingPathExtension(pathExtension)
     }
 }

@@ -17,7 +17,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func loadData() {
         
-        let store = try! CoreDataTallyStore<String>(named: "Long")
+        let trainingStore = CoreDataStoreInformation(defaultSqliteStoreNamed: "TrainingStore")
+        try! trainingStore.destroyExistingPersistantStoreAndFiles()
+        
+        let store = try! CoreDataTallyStore<String>(store: trainingStore)
         var model = Tally<String>(representing: .continuousSequence, ngram: .bigram)
         model.store = AnyTallyStore(store)
         
@@ -52,9 +55,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         progressGroup.notify(queue: DispatchQueue.main) {
             
             print("Finished observations, making archive")
-            
-            let archiveUrl = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent("training").appendingPathExtension("archive")
-            try! store.archive(as: .sqliteStore(at: archiveUrl))
+            let trainingArchive = CoreDataStoreInformation(defaultSqliteStoreNamed: "TrainingArchive")
+            try! trainingArchive.destroyExistingPersistantStoreAndFiles()
+            try! store.archive(as: trainingArchive)
         }
     }
     
