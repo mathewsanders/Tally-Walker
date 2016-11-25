@@ -19,7 +19,7 @@ public enum CoreDataStoreInformation {
     }
     
     public init(binaryStoreNamed name: String) {
-        let url = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent(name).appendingPathExtension("sqlite")
+        let url = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent(name).appendingPathExtension("binary")
         self = .binaryStore(at: url)
     }
     
@@ -38,16 +38,16 @@ public enum CoreDataStoreInformation {
     }
     
     var description: NSPersistentStoreDescription {
-        let archiveDescription = NSPersistentStoreDescription(url: url)
-        archiveDescription.type = type
-        return archiveDescription
+        let _description = NSPersistentStoreDescription(url: url)
+        _description.type = type
+        return _description
     }
     
     public func destroyExistingPersistantStoreAndFiles() throws {
         
         // sqlite stores are truncated, not deleted
-        let psc = NSPersistentStoreCoordinator(managedObjectModel: NSManagedObjectModel())
-        try psc.destroyPersistentStore(at: url, ofType: type, options: nil)
+        let storeCoordinator = NSPersistentStoreCoordinator(managedObjectModel: NSManagedObjectModel())
+        try storeCoordinator.destroyPersistentStore(at: url, ofType: type, options: nil)
         
         if case .sqliteStore = self {
             // attempt to delete sqlite file and assocaited -wal and -shm files
