@@ -6,7 +6,6 @@
 //  Copyright © 2016 Mat. All rights reserved.
 //
 
-import Foundation
 import CoreData
 
 /// A representation of a Type with internal property keys and values mapped to a NSDictionary that can be used in store
@@ -20,57 +19,6 @@ enum CoreDataTallyStoreError: Error {
     case noStoreToArchive
     case coreDataNodeLoadError
     case save(NSError)
-}
-
-public enum CoreDataStoreInformation {
-    
-    case binaryStore(at: URL)
-    case sqliteStore(at: URL)
-    
-    public init(defaultSqliteStoreNamed name: String) {
-        let url = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent(name).appendingPathExtension("sqlite")
-        self = .sqliteStore(at: url)
-    }
-    
-    var type: String {
-        switch self {
-        case .binaryStore: return NSBinaryStoreType
-        case .sqliteStore: return NSSQLiteStoreType
-        }
-    }
-    
-    var url: URL {
-        switch self {
-        case .binaryStore(let url): return url
-        case .sqliteStore(let url): return url
-        }
-    }
-    
-    var description: NSPersistentStoreDescription {
-        let archiveDescription = NSPersistentStoreDescription(url: url)
-        archiveDescription.type = type
-        return archiveDescription
-    }
-    
-    public func destroyExistingPersistantStoreAndFiles() throws {
-        
-        // sqlite stores are truncated, not deleted
-        let psc = NSPersistentStoreCoordinator(managedObjectModel: NSManagedObjectModel())
-        try psc.destroyPersistentStore(at: url, ofType: type, options: nil)
-        
-        if case .sqliteStore = self {
-            // attempt to delete sqlite file and assocaited -wal and -shm files
-            try deleteFileIfExists(fileUrl: url)
-            try deleteFileIfExists(fileUrl: url.appendingToPathExtension("-wal"))
-            try deleteFileIfExists(fileUrl: url.appendingToPathExtension("-shm"))
-        }
-    }
-    
-    private func deleteFileIfExists(fileUrl: URL) throws {
-        if FileManager.default.fileExists(atPath: fileUrl.path) && FileManager.default.isDeletableFile(atPath: fileUrl.path) {
-            try FileManager.default.removeItem(at: fileUrl)
-        }
-    }
 }
 
 // MARK: - CoreDataTallyStore
@@ -321,41 +269,6 @@ fileprivate enum CoreDataItemType: Int16 {
     case literalItem
 }
 
-fileprivate extension NSManagedObject {
-    
-    func loaded<ManagedObjectType: NSManagedObject>(in context: NSManagedObjectContext) -> ManagedObjectType? {
-        
-        var node: ManagedObjectType? = nil
-        
-        guard let originalContext = managedObjectContext
-            else { return node }
-        
-        do {
-            // save to ensure that object id is perminant, and so this node is persisted to store
-            // and can be obtained by a cousin context
-            if originalContext.hasChanges {
-                try originalContext.save()
-            }
-            
-            // use object id to load into the new context
-            // see also: https://medium.com/bpxl-craft/some-lessons-learned-on-core-data-5f095ecb1882#.mzee3j5vf
-            context.performAndWait {
-                do {
-                    node = try context.existingObject(with: self.objectID) as? ManagedObjectType
-                }
-                // catch error from loading object from id
-                catch let error { print(error) }
-            }
-        }
-        // catch error from saving original context
-        catch let error { print(error) }
-        
-        // if everything has gone without error, this will be the `this` object 
-        // loaded in the new context, otherwise it will be `nil`
-        return node
-    }
-}
-
 fileprivate extension CoreDataNode {
 
     convenience init<Item: LosslessConvertible>(node: Node<Item>, in context: NSManagedObjectContext) {
@@ -465,12 +378,5 @@ fileprivate extension Node where Item: LosslessConvertible {
         case .unseenLeadingItems: return CoreDataItemType.boundaryUnseenLeadingItems
         case .unseenTrailingItems: return CoreDataItemType.boundaryUnseenTrailingItems
         }
-    }
-}
-
-fileprivate extension URL {
-    func appendingToPathExtension(_ string: String) -> URL {
-        let pathExtension = self.pathExtension + string
-        return self.deletingPathExtension().appendingPathExtension(pathExtension)
     }
 }
