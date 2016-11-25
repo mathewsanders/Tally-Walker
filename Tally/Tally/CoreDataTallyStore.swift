@@ -18,6 +18,7 @@ public protocol LosslessConvertible {
 enum CoreDataTallyStoreError: Error {
     case missingModelObjectModel
     case noStoreToArchive
+    case coreDataNodeLoadError
     case save(NSError)
 }
 
@@ -76,27 +77,14 @@ public enum CoreDataStoreInformation {
 
 public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item: LosslessConvertible {
         
-    private var stack: CoreDataStack
+    private let stack: CoreDataStack
     private var mainRoot: CoreDataNodeWrapper<Item>
     private var backgroundRoot: CoreDataNodeWrapper<Item>
     
-    public init(store: CoreDataStoreInformation, fillFrom archive: CoreDataStoreInformation? = nil) throws {
-        
-        self.stack = try CoreDataStack(store: store, fromArchive: archive)
-        
-        // Get the root node on the main context (attempt fetch, then create new) and save so that objectID is stable
-        let root: CoreDataNodeWrapper<Item> = stack.getRoot(from: stack.mainContext)
-        try self.stack.save(context: stack.mainContext)
-        
-        // Copy the root node from the main context into the background context
-        // TODO: use launch argument `com.apple.CoreData.ConcurrencyDebug`, invesatigate if below is safe
-        // also: `obtainPermanentIDs(for: [NSManagedObject])` and `existingObject(with: NSManagedObjectID)`
-        // see: https://medium.com/bpxl-craft/some-lessons-learned-on-core-data-5f095ecb1882#.mzee3j5vf
-        let rootNode = stack.backgroundContext.object(with: root._node.objectID) as? CoreDataNode ?? root._node
-        
-        // Assign main root, and background root
-        self.mainRoot = root
-        self.backgroundRoot = CoreDataNodeWrapper<Item>(node: rootNode, in: stack.backgroundContext)
+    public init(store storeInformation: CoreDataStoreInformation, fillFrom archive: CoreDataStoreInformation? = nil) throws {
+        self.stack = try CoreDataStack(store: storeInformation, fromArchive: archive)
+        self.mainRoot = stack.getRoot(from: stack.mainContext)
+        self.backgroundRoot = try mainRoot.loaded(in: stack.backgroundContext)
     }
     
     public convenience init(named name: String = "DefaultStore", fillFrom archive: CoreDataStoreInformation? = nil) throws {
@@ -261,6 +249,13 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
         self.init(node: node, in: context)
     }
     
+    func loaded(in context: NSManagedObjectContext) throws -> CoreDataNodeWrapper {
+        guard let node: CoreDataNode = _node.loaded(in: context)
+            else { throw CoreDataTallyStoreError.coreDataNodeLoadError }
+        
+        return CoreDataNodeWrapper<Item>(node: node, in: context)
+    }
+    
     var count: Double {
         get { return _node.count }
         set { _node.count = newValue }
@@ -326,8 +321,43 @@ fileprivate enum CoreDataItemType: Int16 {
     case literalItem
 }
 
-fileprivate extension CoreDataNode {
+fileprivate extension NSManagedObject {
     
+    func loaded<ManagedObjectType: NSManagedObject>(in context: NSManagedObjectContext) -> ManagedObjectType? {
+        
+        var node: ManagedObjectType? = nil
+        
+        guard let originalContext = managedObjectContext
+            else { return node }
+        
+        do {
+            // save to ensure that object id is perminant, and so this node is persisted to store
+            // and can be obtained by a cousin context
+            if originalContext.hasChanges {
+                try originalContext.save()
+            }
+            
+            // use object id to load into the new context
+            // see also: https://medium.com/bpxl-craft/some-lessons-learned-on-core-data-5f095ecb1882#.mzee3j5vf
+            context.performAndWait {
+                do {
+                    node = try context.existingObject(with: self.objectID) as? ManagedObjectType
+                }
+                // catch error from loading object from id
+                catch let error { print(error) }
+            }
+        }
+        // catch error from saving original context
+        catch let error { print(error) }
+        
+        // if everything has gone without error, this will be the `this` object 
+        // loaded in the new context, otherwise it will be `nil`
+        return node
+    }
+}
+
+fileprivate extension CoreDataNode {
+
     convenience init<Item: LosslessConvertible>(node: Node<Item>, in context: NSManagedObjectContext) {
         self.init(context: context)
         

@@ -18,7 +18,10 @@ class TallyTestsCoreDataStore: XCTestCase {
         let closureGroup = DispatchGroup()
         
         // create a core data store, with an in-memory option (used for testing)
-        let store = try! CoreDataTallyStore<String>()
+        let testSqlite = CoreDataStoreInformation(defaultSqliteStoreNamed: "Test")
+        try! testSqlite.destroyExistingPersistantStoreAndFiles()
+        
+        let store = try! CoreDataTallyStore<String>(store: testSqlite)
         
         // create a model using a CoreData store
         var model = Tally<String>()
@@ -54,6 +57,8 @@ class TallyTestsCoreDataStore: XCTestCase {
             let newModelItemProbabilitiesAfterHello = newModel.itemProbabilities(after: "hello")
             XCTAssertTrue(newModelItemProbabilitiesAfterHello.count == 2, "Unexpected number of probabilities")
             XCTAssertTrue(newModelItemProbabilitiesAfterHello[0].probability == 0.5, "Unexpected probability")
+            
+            try! testSqlite.destroyExistingPersistantStoreAndFiles()
         }
     }
     
@@ -61,8 +66,11 @@ class TallyTestsCoreDataStore: XCTestCase {
         
         let closureExpectation = expectation(description: "Closure")
         
+        let testSqlite = CoreDataStoreInformation(defaultSqliteStoreNamed: "Test")
+        try! testSqlite.destroyExistingPersistantStoreAndFiles()
+        
         // create a core data store, with an in-memory option (used for testing)
-        let store = try! CoreDataTallyStore<String>(named: "Test")
+        let store = try! CoreDataTallyStore<String>(store: testSqlite)
         
         // create a model using a CoreData store
         var model = Tally<String>()
@@ -76,7 +84,8 @@ class TallyTestsCoreDataStore: XCTestCase {
         waitForExpectations(timeout: 1) { _ in
             let modelItemProbabilitiesAfterHello = model.itemProbabilities(after: "hello")
             dump(modelItemProbabilitiesAfterHello)
-            //dump(model.distributions())
+            
+            try! testSqlite.destroyExistingPersistantStoreAndFiles()
         }
     }
     
@@ -84,10 +93,12 @@ class TallyTestsCoreDataStore: XCTestCase {
     func testNamedStores() {
         
         let closureExpectation = expectation(description: "Closure")
-        
         let closureGroup = DispatchGroup()
         
-        let birdStore = try! CoreDataTallyStore<String>(named: "Birds")
+        let birdsSqlite = CoreDataStoreInformation(defaultSqliteStoreNamed: "Birds")
+        try! birdsSqlite.destroyExistingPersistantStoreAndFiles()
+        
+        let birdStore = try! CoreDataTallyStore<String>(store: birdsSqlite)
         var birdModel = Tally<String>()
         birdModel.store = AnyTallyStore(birdStore)
         
@@ -96,7 +107,10 @@ class TallyTestsCoreDataStore: XCTestCase {
             closureGroup.leave()
         }
         
-        let carStore = try! CoreDataTallyStore<String>(named: "Cars")
+        let carsSqlite = CoreDataStoreInformation(defaultSqliteStoreNamed: "Cars")
+        try! carsSqlite.destroyExistingPersistantStoreAndFiles()
+        
+        let carStore = try! CoreDataTallyStore<String>(store: carsSqlite)
         var carModel = Tally<String>()
         carModel.store = AnyTallyStore(carStore)
         
@@ -122,32 +136,14 @@ class TallyTestsCoreDataStore: XCTestCase {
             // expect: [(0.5, "honk"), (0.5, unseenTrailingItems)]
             XCTAssertTrue(carModelItemProbabilitiesAfterHonk.count == 2, "Unexpected number of probabilities")
             XCTAssertTrue(carModelItemProbabilitiesAfterHonk[0].probability == 0.5, "Unexpected probability")
+            
+            try! birdsSqlite.destroyExistingPersistantStoreAndFiles()
+            try! carsSqlite.destroyExistingPersistantStoreAndFiles()
         }
-    }
-    
-    // TODO: Update ABC.sqlite example with new schema
-    func DONTtestLoadFromExistingStore() {
-        
-        guard let storeUrl = Bundle(for: TallyTestsCoreDataStore.self).url(forResource: "ABC", withExtension: "sqlite") else {
-            XCTFail("sqlite file does not exist")
-            return
-        }
-        
-        let store = try! CoreDataTallyStore<String>(named: "ABC", fillFrom: .sqliteStore(at: storeUrl))
-        var model = Tally<String>()
-        model.store = AnyTallyStore(store)
-        
-        // model is previously build by observing sequence ["a", "b", "c", "d"]
-        
-        let probabilities = model.itemProbabilities(after: "a")
-        XCTAssertTrue(probabilities.count == 1, "Unexpected number of probabilities")
-        XCTAssertTrue(probabilities[0] == (probability: 1.0, item: Node.item("b")), "Unexpected probability")
-        
     }
 }
 
-// Type needs to implement either LosslessTextConvertible, or LosslessDictionaryConvertible to be 
-// used with a CoreDataTallyStore, for String it just needs an empty extension. 
+
 extension String: LosslessConvertible {
     public var losslessRepresentation: CoreDataTallyStoreLosslessRepresentation {
         return .string(self)
