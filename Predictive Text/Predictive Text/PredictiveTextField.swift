@@ -42,7 +42,7 @@ class PredictiveTextField: UITextField {
     required init?(coder aDecoder: NSCoder) {
         
         // set up store
-        guard let archiveUrl = Bundle.main.url(forResource: "training", withExtension: "archive") else {
+        guard let archiveUrl = Bundle.main.url(forResource: "Trained", withExtension: "sqlite") else {
             print("could not load coredata archive from bundle")
             return nil
         }

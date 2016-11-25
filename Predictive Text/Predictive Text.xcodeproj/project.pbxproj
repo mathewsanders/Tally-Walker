@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		401C19021DE629520045597C /* training.archive in Resources */ = {isa = PBXBuildFile; fileRef = 401C19011DE629520045597C /* training.archive */; };
 		AF0699301DE7720600E5C1AB /* training-data-short.txt in Resources */ = {isa = PBXBuildFile; fileRef = AF06992F1DE7720600E5C1AB /* training-data-short.txt */; };
+		AF06993B1DE8B83800E5C1AB /* Trained.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = AF06993A1DE8B83800E5C1AB /* Trained.sqlite */; };
 		AF1797951DD7A7D600D45737 /* Tally.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF1797921DD7A7CA00D45737 /* Tally.framework */; };
 		AF1797991DD7A87600D45737 /* PredictiveTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF1797961DD7A87600D45737 /* PredictiveTextField.swift */; };
 		AF17979A1DD7A87600D45737 /* PredictiveTextField+Classes.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF1797971DD7A87600D45737 /* PredictiveTextField+Classes.swift */; };
@@ -38,8 +38,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		401C19011DE629520045597C /* training.archive */ = {isa = PBXFileReference; lastKnownFileType = file; path = training.archive; sourceTree = "<group>"; };
 		AF06992F1DE7720600E5C1AB /* training-data-short.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "training-data-short.txt"; sourceTree = "<group>"; };
+		AF06993A1DE8B83800E5C1AB /* Trained.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = Trained.sqlite; sourceTree = "<group>"; };
 		AF17978C1DD7A7CA00D45737 /* Tally.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Tally.xcodeproj; path = ../Tally/Tally.xcodeproj; sourceTree = "<group>"; };
 		AF1797961DD7A87600D45737 /* PredictiveTextField.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PredictiveTextField.swift; sourceTree = "<group>"; };
 		AF1797971DD7A87600D45737 /* PredictiveTextField+Classes.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "PredictiveTextField+Classes.swift"; sourceTree = "<group>"; };
@@ -100,7 +100,7 @@
 				AF1797971DD7A87600D45737 /* PredictiveTextField+Classes.swift */,
 				AFE702F01DE0022B00E952E6 /* training-data.txt */,
 				AF06992F1DE7720600E5C1AB /* training-data-short.txt */,
-				401C19011DE629520045597C /* training.archive */,
+				AF06993A1DE8B83800E5C1AB /* Trained.sqlite */,
 				AF80BC051DD7A6160016C182 /* Main.storyboard */,
 				AF80BC081DD7A6160016C182 /* Assets.xcassets */,
 				AF80BC0A1DD7A6160016C182 /* LaunchScreen.storyboard */,
@@ -193,9 +193,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				AFE702F11DE0022B00E952E6 /* training-data.txt in Resources */,
-				401C19021DE629520045597C /* training.archive in Resources */,
 				AF80BC0C1DD7A6160016C182 /* LaunchScreen.storyboard in Resources */,
 				AF0699301DE7720600E5C1AB /* training-data-short.txt in Resources */,
+				AF06993B1DE8B83800E5C1AB /* Trained.sqlite in Resources */,
 				AF80BC091DD7A6160016C182 /* Assets.xcassets in Resources */,
 				AF80BC071DD7A6160016C182 /* Main.storyboard in Resources */,
 			);

@@ -15,12 +15,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
     
-    func loadData() {
+    func loadData() throws {
         
-        let trainingStore = CoreDataStoreInformation(defaultSqliteStoreNamed: "TrainingStore")
-        try! trainingStore.destroyExistingPersistantStoreAndFiles()
+        let tempTrainingStore = CoreDataStoreInformation(sqliteStoreNamed: "tempTrainingStore")
+        try tempTrainingStore.destroyExistingPersistantStoreAndFiles()
         
-        let store = try! CoreDataTallyStore<String>(store: trainingStore)
+        let store = try CoreDataTallyStore<String>(store: tempTrainingStore)
         var model = Tally<String>(representing: .continuousSequence, ngram: .bigram)
         model.store = AnyTallyStore(store)
         
@@ -55,15 +55,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         progressGroup.notify(queue: DispatchQueue.main) {
             
             print("Finished observations, making archive")
-            let trainingArchive = CoreDataStoreInformation(defaultSqliteStoreNamed: "TrainingArchive")
-            try! trainingArchive.destroyExistingPersistantStoreAndFiles()
-            try! store.archive(as: trainingArchive)
+            let trainingArchive = CoreDataStoreInformation(sqliteStoreNamed: "Trained")
+            
+            do {
+                try trainingArchive.destroyExistingPersistantStoreAndFiles()
+                try store.archive(as: trainingArchive)
+                try tempTrainingStore.destroyExistingPersistantStoreAndFiles()
+            }
+            catch let error {
+                print("Archive failed")
+                print(error)
+            }
         }
     }
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
-        //loadData()
+        //try! loadData()
         return true
     }
     

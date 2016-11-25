@@ -40,27 +40,16 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
         try self.init(store: storeInformation, fillFrom: archive)
     }
     
-    public func save() {
-        try! self.stack.save(context: stack.mainContext)
-    }
-    
     deinit {
         save()
     }
     
-    // TODO: After migrating to a sqlite archive, is it safe to only use the .sqlite file to restore?
-    // If sqlite is chosen as the archive type, might need to manaully turn off wal option 
-    // (which would need to be mirrored in the stack initilization)
-    // see: https://developer.apple.com/library/content/qa/qa1809/_index.html
-    // see: https://developer.apple.com/library/content/documentation/Cocoa/Conceptual/CoreData/PersistentStoreFeatures.html
-    // see: http://stackoverflow.com/questions/20969996/is-it-safe-to-delete-sqlites-wal-file
-    // TODO: Explore using VACUUM for sqlite stores.  
+    public func save() {
+        try! self.stack.save(context: stack.mainContext)
+    }
+    
     public func archive(as archiveStore: CoreDataStoreInformation) throws {
-        
-        guard let currentStore = self.stack.storeContainer.persistentStoreCoordinator.persistentStores.first
-            else { throw CoreDataTallyStoreError.noStoreToArchive }
-        
-        try self.stack.storeContainer.persistentStoreCoordinator.migratePersistentStore(currentStore, to: archiveStore.url, options: nil, withType: archiveStore.type)
+        try stack.archive(as: archiveStore)
     }
     
     // MARK: TallyStoreType
@@ -94,8 +83,9 @@ fileprivate class CoreDataStack {
     let storeContainer: NSPersistentContainer
     let mainContext: NSManagedObjectContext
     let backgroundContext: NSManagedObjectContext
+    let storeInformation: CoreDataStoreInformation
     
-    init(store: CoreDataStoreInformation, fromArchive archive: CoreDataStoreInformation? = nil) throws {
+    init(store storeInformation: CoreDataStoreInformation, fromArchive archive: CoreDataStoreInformation? = nil) throws {
 
         // load the mom
         guard let momUrl = Bundle(for: CoreDataStack.self).url(forResource: "TallyStoreModel", withExtension: "momd"),
@@ -108,7 +98,7 @@ fileprivate class CoreDataStack {
         if let archive = archive {
             
             // if the store already exists, then don't import from the archive
-            if !FileManager.default.fileExists(atPath: store.url.path) {
+            if !FileManager.default.fileExists(atPath: storeInformation.url.path) {
                 
                 // initalize archive container and load
                 let archiveContainer = NSPersistentContainer(name: "ArchiveContainer", managedObjectModel: mom)
@@ -119,24 +109,25 @@ fileprivate class CoreDataStack {
                 guard let archivedStore = archiveContainer.persistentStoreCoordinator.persistentStore(for: archive.url), storeLoadError == nil
                     else { throw storeLoadError! }
                 
-                try archiveContainer.persistentStoreCoordinator.migratePersistentStore(archivedStore, to: store.url, options: nil, withType: store.type)
+                try archiveContainer.persistentStoreCoordinator.migratePersistentStore(archivedStore, to: storeInformation.url, options: nil, withType: storeInformation.type)
             }
         }
         
         // initalize store container and load
         storeContainer = NSPersistentContainer(name: "StoreContainer", managedObjectModel: mom)
-        storeContainer.persistentStoreDescriptions = [store.description]
+        storeContainer.persistentStoreDescriptions = [storeInformation.description]
         storeContainer.loadPersistentStores { description, error in
             storeLoadError = error
             print(description)
         }
         
-        guard let _ = storeContainer.persistentStoreCoordinator.persistentStore(for: store.url), storeLoadError == nil
+        guard let _ = storeContainer.persistentStoreCoordinator.persistentStore(for: storeInformation.url), storeLoadError == nil
             else { throw storeLoadError! }
         
         // initalize contexts
-        mainContext = CoreDataStack.configure(context: storeContainer.viewContext)
-        backgroundContext = CoreDataStack.configure(context: storeContainer.newBackgroundContext())
+        self.mainContext = CoreDataStack.configure(context: storeContainer.viewContext)
+        self.backgroundContext = CoreDataStack.configure(context: storeContainer.newBackgroundContext())
+        self.storeInformation = storeInformation
     }
     
     private func fetchExistingRoot<Item>(from context: NSManagedObjectContext) -> CoreDataNodeWrapper<Item>? where Item: Hashable, Item: LosslessConvertible {
@@ -165,6 +156,22 @@ fileprivate class CoreDataStack {
         if context.hasChanges {
             try context.save()
         }
+    }
+    
+    // see: https://developer.apple.com/library/content/qa/qa1809/_index.html
+    // see: https://developer.apple.com/library/content/documentation/Cocoa/Conceptual/CoreData/PersistentStoreFeatures.html
+    // see: http://stackoverflow.com/questions/20969996/is-it-safe-to-delete-sqlites-wal-file
+    fileprivate func archive(as archiveStore: CoreDataStoreInformation) throws {
+        
+        guard let currentStore = self.storeContainer.persistentStoreCoordinator.persistentStore(for: storeInformation.url)
+            else { throw CoreDataTallyStoreError.noStoreToArchive }
+        
+        let options: [String: Any] = [
+            NSSQLiteManualVacuumOption: true,
+            NSSQLitePragmasOption: ["journal_mode": "DELETE"]
+        ]
+        
+        try self.storeContainer.persistentStoreCoordinator.migratePersistentStore(currentStore, to: archiveStore.url, options: options, withType: archiveStore.type)
     }
     
     static func configure(context: NSManagedObjectContext) -> NSManagedObjectContext {
