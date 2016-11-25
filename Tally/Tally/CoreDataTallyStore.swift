@@ -36,7 +36,7 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     }
     
     public convenience init(named name: String = "DefaultStore", fillFrom archive: CoreDataStoreInformation? = nil) throws {
-        let storeInformation = CoreDataStoreInformation(defaultSqliteStoreNamed: name)
+        let storeInformation = CoreDataStoreInformation(sqliteStoreNamed: name)
         try self.init(store: storeInformation, fillFrom: archive)
     }
     

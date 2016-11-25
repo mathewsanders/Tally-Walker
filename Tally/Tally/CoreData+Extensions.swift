@@ -13,9 +13,14 @@ public enum CoreDataStoreInformation {
     case binaryStore(at: URL)
     case sqliteStore(at: URL)
     
-    public init(defaultSqliteStoreNamed name: String) {
+    public init(sqliteStoreNamed name: String) {
         let url = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent(name).appendingPathExtension("sqlite")
         self = .sqliteStore(at: url)
+    }
+    
+    public init(binaryStoreNamed name: String) {
+        let url = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent(name).appendingPathExtension("sqlite")
+        self = .binaryStore(at: url)
     }
     
     var type: String {
