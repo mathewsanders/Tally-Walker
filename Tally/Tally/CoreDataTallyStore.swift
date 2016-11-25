@@ -36,7 +36,7 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     }
     
     public convenience init(named name: String = "DefaultStore", fillFrom archive: CoreDataStoreInformation? = nil) throws {
-        let storeInformation = CoreDataStoreInformation(sqliteStoreNamed: name)
+        let storeInformation = try CoreDataStoreInformation(sqliteStoreNamed: name, in: .defaultDirectory)
         try self.init(store: storeInformation, fillFrom: archive)
     }
     
@@ -109,6 +109,16 @@ fileprivate class CoreDataStack {
                 guard let archivedStore = archiveContainer.persistentStoreCoordinator.persistentStore(for: archive.url), storeLoadError == nil
                     else { throw storeLoadError! }
                 
+                // Stores archived by CoreDataStack apply manual vacuum and set journal mode to DELETE
+                // Need to test to see if nil options are passed through the archive options are used
+                // of if the persistant store coordiantors default options are used instead
+                /*
+                let options: [String: Any] = [
+                    NSSQLiteManualVacuumOption: false,
+                    NSSQLitePragmasOption: ["journal_mode": "WAL"]
+                ]
+                */
+                
                 try archiveContainer.persistentStoreCoordinator.migratePersistentStore(archivedStore, to: storeInformation.url, options: nil, withType: storeInformation.type)
             }
         }
@@ -121,8 +131,16 @@ fileprivate class CoreDataStack {
             print(description)
         }
         
-        guard let _ = storeContainer.persistentStoreCoordinator.persistentStore(for: storeInformation.url), storeLoadError == nil
+        guard let store = storeContainer.persistentStoreCoordinator.persistentStore(for: storeInformation.url), storeLoadError == nil
             else { throw storeLoadError! }
+        
+        print("store")
+        print("- store.identifier", store.identifier)
+        print("- store.isReadOnly", store.isReadOnly)
+        print("- store.metadata", store.metadata)
+        print("- store.options", store.options)
+        
+        print("")
         
         // initalize contexts
         self.mainContext = CoreDataStack.configure(context: storeContainer.viewContext)

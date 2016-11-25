@@ -18,7 +18,7 @@ class TallyTestsCoreDataStore: XCTestCase {
         let closureGroup = DispatchGroup()
         
         // create a core data store, with an in-memory option (used for testing)
-        let testSqlite = CoreDataStoreInformation(sqliteStoreNamed: "Test")
+        let testSqlite = try! CoreDataStoreInformation(sqliteStoreNamed: "Test")
         try! testSqlite.destroyExistingPersistantStoreAndFiles()
         
         let store = try! CoreDataTallyStore<String>(store: testSqlite)
@@ -66,7 +66,7 @@ class TallyTestsCoreDataStore: XCTestCase {
         
         let closureExpectation = expectation(description: "Closure")
         
-        let testSqlite = CoreDataStoreInformation(sqliteStoreNamed: "Test")
+        let testSqlite = try! CoreDataStoreInformation(sqliteStoreNamed: "Test")
         try! testSqlite.destroyExistingPersistantStoreAndFiles()
         
         // create a core data store, with an in-memory option (used for testing)
@@ -95,7 +95,7 @@ class TallyTestsCoreDataStore: XCTestCase {
         let closureExpectation = expectation(description: "Closure")
         let closureGroup = DispatchGroup()
         
-        let birdsSqlite = CoreDataStoreInformation(sqliteStoreNamed: "Birds")
+        let birdsSqlite = try! CoreDataStoreInformation(sqliteStoreNamed: "Birds")
         try! birdsSqlite.destroyExistingPersistantStoreAndFiles()
         
         let birdStore = try! CoreDataTallyStore<String>(store: birdsSqlite)
@@ -107,7 +107,7 @@ class TallyTestsCoreDataStore: XCTestCase {
             closureGroup.leave()
         }
         
-        let carsSqlite = CoreDataStoreInformation(sqliteStoreNamed: "Cars")
+        let carsSqlite = try! CoreDataStoreInformation(sqliteStoreNamed: "Cars")
         try! carsSqlite.destroyExistingPersistantStoreAndFiles()
         
         let carStore = try! CoreDataTallyStore<String>(store: carsSqlite)

@@ -41,14 +41,9 @@ class PredictiveTextField: UITextField {
     
     required init?(coder aDecoder: NSCoder) {
         
-        // set up store
-        guard let archiveUrl = Bundle.main.url(forResource: "Trained", withExtension: "sqlite") else {
-            print("could not load coredata archive from bundle")
-            return nil
-        }
-        
         do {
-            store = try AnyTallyStore(CoreDataTallyStore<String>(named: "PredictiveModel", fillFrom: .sqliteStore(at: archiveUrl)))
+            let archive = try CoreDataStoreInformation(sqliteStoreNamed: "Trained", in: .mainBundle)
+            store = try AnyTallyStore(CoreDataTallyStore<String>(named: "PredictiveModel", fillFrom: archive))
         }
         catch let error {
             print(error)

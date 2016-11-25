@@ -17,14 +17,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func loadData() throws {
         
-        let tempTrainingStore = CoreDataStoreInformation(sqliteStoreNamed: "tempTrainingStore")
+        let tempTrainingStore = try CoreDataStoreInformation(sqliteStoreNamed: "tempTrainingStore", in: .defaultDirectory)
         try tempTrainingStore.destroyExistingPersistantStoreAndFiles()
         
         let store = try CoreDataTallyStore<String>(store: tempTrainingStore)
         var model = Tally<String>(representing: .continuousSequence, ngram: .bigram)
         model.store = AnyTallyStore(store)
         
-        let lines = array(from: "training-data")
+        let lines = array(from: "training-data-short")
         let seperators = CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters)
         
         print("loading....", lines.count)
@@ -55,16 +55,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         progressGroup.notify(queue: DispatchQueue.main) {
             
             print("Finished observations, making archive")
-            let trainingArchive = CoreDataStoreInformation(sqliteStoreNamed: "Trained")
             
             do {
+                let trainingArchive = try CoreDataStoreInformation(sqliteStoreNamed: "Trained", in: .defaultDirectory)
                 try trainingArchive.destroyExistingPersistantStoreAndFiles()
                 try store.archive(as: trainingArchive)
                 try tempTrainingStore.destroyExistingPersistantStoreAndFiles()
             }
             catch let error {
-                print("Archive failed")
-                print(error)
+                print("Archive failed:", error)
             }
         }
     }

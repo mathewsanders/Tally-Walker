@@ -13,13 +13,22 @@ public enum CoreDataStoreInformation {
     case binaryStore(at: URL)
     case sqliteStore(at: URL)
     
-    public init(sqliteStoreNamed name: String) {
-        let url = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent(name).appendingPathExtension("sqlite")
+    public enum Location {
+        case mainBundle
+        case defaultDirectory
+    }
+    
+    enum CoreDataStoreInformationError: Error {
+        case bundleResourceNotFound
+    }
+    
+    public init(sqliteStoreNamed name: String, in location: Location = .defaultDirectory) throws {
+        let url = try CoreDataStoreInformation.url(for: name, extension: "sqlite", location: location)
         self = .sqliteStore(at: url)
     }
     
-    public init(binaryStoreNamed name: String) {
-        let url = NSPersistentContainer.defaultDirectoryURL().appendingPathComponent(name).appendingPathExtension("binary")
+    public init(binaryStoreNamed name: String, in location: Location = .defaultDirectory) throws {
+        let url = try CoreDataStoreInformation.url(for: name, extension: "binary", location: location)
         self = .binaryStore(at: url)
     }
     
@@ -45,6 +54,8 @@ public enum CoreDataStoreInformation {
     
     public func destroyExistingPersistantStoreAndFiles() throws {
         
+        // items in the application bundle are read only
+        
         // sqlite stores are truncated, not deleted
         let storeCoordinator = NSPersistentStoreCoordinator(managedObjectModel: NSManagedObjectModel())
         try storeCoordinator.destroyPersistentStore(at: url, ofType: type, options: nil)
@@ -60,6 +71,20 @@ public enum CoreDataStoreInformation {
     private func deleteFileIfExists(fileUrl: URL) throws {
         if FileManager.default.fileExists(atPath: fileUrl.path) && FileManager.default.isDeletableFile(atPath: fileUrl.path) {
             try FileManager.default.removeItem(at: fileUrl)
+        }
+    }
+    
+    private static func url(for resourceName: String, extension resourceExtension: String, location: Location) throws -> URL {
+        
+        switch location {
+        case .defaultDirectory:
+            return NSPersistentContainer.defaultDirectoryURL().appendingPathComponent(resourceName).appendingPathExtension(resourceExtension)
+            
+        case .mainBundle:
+            guard let bundleUrl = Bundle.main.url(forResource: resourceName, withExtension: resourceExtension)
+                else { throw CoreDataStoreInformationError.bundleResourceNotFound }
+            
+            return bundleUrl
         }
     }
 }
