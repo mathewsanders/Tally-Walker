@@ -1,24 +1,48 @@
+// CoreDataTallyStore.swift
 //
-//  CoreDataTallyStore.swift
-//  Tally
+// Copyright (c) 2016 Mathew Sanders
 //
-//  Created by mat on 11/15/16.
-//  Copyright © 2016 Mat. All rights reserved.
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
 //
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 
 import CoreData
 
-/// A representation of a Type with internal property keys and values mapped to a NSDictionary that can be used in store
+/// A type that can be converted to a type that can be stored as a Core Data entity property, and 
+/// perfectly reconstructed from the stored type.
 public protocol LosslessConvertible {
     init?(_: CoreDataTallyStoreLosslessRepresentation)
     var losslessRepresentation: CoreDataTallyStoreLosslessRepresentation { get }
 }
 
+/**
+ Error raised when using CoreDataTallyStore
+ 
+ - missingModelObjectModel: The file 'TallyStoreModel.xcdatamodeld' could not be loaded.
+ - coreDataNodeLoadToContextFailed: Attempt to load a node into a new context has failed.
+ - save: Attempt to save context has failed.
+ - noStoreToArchive: Request to archive a store failed because store does not exist.
+ 
+ */
 enum CoreDataTallyStoreError: Error {
     case missingModelObjectModel
-    case noStoreToArchive
-    case coreDataNodeLoadError
+    case coreDataNodeLoadToContextFailed
     case save(NSError)
+    case noStoreToArchive
 }
 
 // MARK: - CoreDataTallyStore
@@ -54,6 +78,7 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     
     // MARK: TallyStoreType
     public func incrementCount(for sequence: [Node<Item>]) {
+        print("WARNING: Using CoreData increment count without closure")
         incrementCount(for: sequence, completed: nil)
     }
     
@@ -138,8 +163,7 @@ fileprivate class CoreDataStack {
         print("- store.identifier", store.identifier)
         print("- store.isReadOnly", store.isReadOnly)
         print("- store.metadata", store.metadata)
-        print("- store.options", store.options)
-        
+        print("- store.options", store.options as Any)
         print("")
         
         // initalize contexts
@@ -224,7 +248,7 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
     
     func loaded(in context: NSManagedObjectContext) throws -> CoreDataNodeWrapper {
         guard let node: CoreDataNode = _node.loaded(in: context)
-            else { throw CoreDataTallyStoreError.coreDataNodeLoadError }
+            else { throw CoreDataTallyStoreError.coreDataNodeLoadToContextFailed }
         
         return CoreDataNodeWrapper<Item>(node: node, in: context)
     }

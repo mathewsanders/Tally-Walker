@@ -87,14 +87,14 @@ public struct Tally<Item: Hashable> {
     /// - item is a `Node` which may represent a literal item, or a sequence boundary
     public typealias ItemProbability = (probability: Double, item: Node<Item>)
     
-    public typealias Closure = () -> Void
-    
     /// The type of n-gram to use when building the frequency model.
     public let ngram: NgramType
     
     /// The type of sequence that the frequency model represents.
     public let sequence: TallySequenceType
     
+    /// An object responsible for maintaining the state of the model.
+    /// If no object is supplied, the model will use an instance of `MemoryTallyStore`.
     public var store: AnyTallyStore<Item>?
     
     private var _memoryStore: AnyTallyStore<Item>
@@ -124,20 +124,22 @@ public struct Tally<Item: Hashable> {
     }
     
     /// Start a series of method calls to observe an item from a sequence.
-    public mutating func startSequence(completed closure: Closure? = nil) {
+    public mutating func startSequence(completed closure: (() -> Void)? = nil) {
         recentlyObserved.removeAll()
         observe(next: nodeForStart, completed: closure)
     }
     
     /// Conclude a series of method calls to observe an item from a sequence.
-    public mutating func endSequence(completed closure: Closure? = nil) {
-        observe(next: nodeForEnd, completed: closure)
+    public mutating func endSequence(completed: (() -> Void)? = nil) {
+        observe(next: nodeForEnd, completed: completed)
         recentlyObserved.removeAll()
     }
     
     /// Observes the next item in a sequence as part of training the frequency model.
     ///
-    /// - parameter item: The item to observe.
+    /// - parameters:
+    ///     - item: The item to observe.
+    ///     - completed: A closure object containing behaviour to perform once observation is completed.
     ///
     /// Call this method multiple times surrounded by calls to `startSequence()` and `endSequence()`.
     ///
@@ -151,18 +153,25 @@ public struct Tally<Item: Hashable> {
     /// // end the sequence
     /// model.endSequence()
     /// ~~~~
-    public mutating func observe(next item: Item, completed closure: Closure? = nil) {
+    public mutating func observe(next item: Item, completed closure: (() -> Void)? = nil) {
         observe(next: Node.item(item), completed: closure)
     }
     
     /// Observes a sequence of items.
+    /// If the model is using a `TallyStoreType` that supports asynchronous observations the completed closure
+    /// will be called when observations are completed.
     ///
-    /// - parameter items: The sequence of items to observe.
+    /// For TallyStoreTypes that do not support asynchronous observations, the completed closure will be called 
+    /// immediately.
+    ///
+    /// - parameters:
+    ///     - items: The sequence of items to observe.
+    ///     - completed: A closure object containing behaviour to perform once observation is completed.
     ///
     /// This method does *not* need to be surrounded by calls to `startSequence()` and `endSequence()`.
-    public mutating func observe(sequence items: [Item], completed closure: Closure? = nil) {
+    public mutating func observe(sequence items: [Item], completed: (() -> Void)? = nil) {
         
-        if let closure = closure {
+        if let completed = completed {
             let closureGroup = DispatchGroup()
             
             closureGroup.enter()
@@ -183,7 +192,7 @@ public struct Tally<Item: Hashable> {
             }
             
             closureGroup.notify(queue: DispatchQueue.global(qos: DispatchQoS.QoSClass.userInteractive)) {
-                closure()
+                completed()
             }
         }
         else {
@@ -196,12 +205,12 @@ public struct Tally<Item: Hashable> {
         }
     }
     
-    internal mutating func observe(next node: Node<Item>, completed closure: Closure? = nil) {
+    internal mutating func observe(next node: Node<Item>, completed: (() -> Void)? = nil) {
         
         recentlyObserved.append(node)
         recentlyObserved.clamp(to: ngram.size)
         
-        if let closure = closure {
+        if let completed = completed {
             let closureGroup = DispatchGroup()
             
             for itemIndex in 0..<recentlyObserved.count {
@@ -214,7 +223,7 @@ public struct Tally<Item: Hashable> {
             }
             
             closureGroup.notify(queue: DispatchQueue.global(qos: DispatchQoS.QoSClass.userInteractive)) {
-                closure()
+                completed()
             }
         }
         else {
