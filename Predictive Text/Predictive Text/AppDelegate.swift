@@ -17,13 +17,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func loadData() throws {
         
-        let tempTrainingStore = try CoreDataStoreInformation(sqliteStoreNamed: "tempTrainingStore", in: .defaultDirectory)
-        try tempTrainingStore.destroyExistingPersistantStoreAndFiles()
+        // create an in-memory store for training (we're going to archive, so don't worry about persistance)
+        let memoryStore = try CoreDataStoreInformation(memoryStoreNamed: "tempTrainingStore", in: .defaultDirectory)
         
-        let store = try CoreDataTallyStore<String>(store: tempTrainingStore)
+        // create core data tally store with memoty backing
+        let store = try CoreDataTallyStore<String>(store: memoryStore)
+        
+        // create the model, and assign the store
         var model = Tally<String>(representing: .continuousSequence, ngram: .bigram)
         model.store = AnyTallyStore(store)
         
+        // read lines from training data
         let lines = array(from: "training-data-short")
         let seperators = CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters)
         
@@ -31,41 +35,37 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let total = Double(lines.count)
         var count = 0.0
         
-        let progressGroup = DispatchGroup()
-        
         for line in lines {
             count += 1
+            
             let percent = Int(100*(count/total))
             
-            let normalized = normalize(text: line)
+            let normalized = self.normalize(text: line)
             if normalized != "" {
-                
                 let words = normalized.components(separatedBy: seperators).filter({ word in return !word.isEmpty })
                 print(percent, words)
                 
-                progressGroup.enter()
-                model.observe(sequence: words) {
-                    progressGroup.leave()
-                }
+                // observe data
+                model.observe(sequence: words)
             }
         }
-        
-        // can take a few minutes for saves to complete
-        // TODO: Investigate if I'm doing something that's slowing down save performance
-        progressGroup.notify(queue: DispatchQueue.main) {
-            
-            print("Finished observations, making archive")
-            
+
+        // save is performed on same background queue that observation occurs on, athough observations are likely
+        // to see be in progess when the save request is sent, it's added to the queue FIFO and so will only be 
+        // started once all prior observations are completed.
+        store.save(completed: {
             do {
+                let dist = model.distributions()
+                dump(dist)
+                
                 let trainingArchive = try CoreDataStoreInformation(sqliteStoreNamed: "Trained", in: .defaultDirectory)
                 try trainingArchive.destroyExistingPersistantStoreAndFiles()
                 try store.archive(as: trainingArchive)
-                try tempTrainingStore.destroyExistingPersistantStoreAndFiles()
             }
-            catch let error {
+            catch {
                 print("Archive failed:", error)
             }
-        }
+        })
     }
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {

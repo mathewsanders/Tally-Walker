@@ -26,7 +26,7 @@ class PredictiveTextField: UITextField {
     
     let seperatorCharacters = CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters)
     
-    let store: AnyTallyStore<String>
+    let store: CoreDataTallyStore<String>
     var model: Tally<String>
     
     private var contextualInputAccessoryView: InputAccessoryView?
@@ -43,7 +43,7 @@ class PredictiveTextField: UITextField {
         
         do {
             let archive = try CoreDataStoreInformation(sqliteStoreNamed: "Trained", in: .mainBundle)
-            store = try AnyTallyStore(CoreDataTallyStore<String>(named: "PredictiveModel", fillFrom: archive))
+            store = try CoreDataTallyStore<String>(named: "PredictiveModel", fillFrom: archive)
         }
         catch let error {
             print(error)
@@ -52,7 +52,7 @@ class PredictiveTextField: UITextField {
         
         // set up model
         model = Tally(representing: TallySequenceType.continuousSequence, ngram: .bigram)
-        model.store = store
+        model.store = AnyTallyStore(store)
         
         super.init(coder: aDecoder)
         
@@ -68,11 +68,13 @@ class PredictiveTextField: UITextField {
     }
     
     func learn(example: String) {
+        
         let sequence = example.trimmingCharacters(in: seperatorCharacters).components(separatedBy: seperatorCharacters)
+        
         model.observe(sequence: sequence) {
-            DispatchQueue.main.async {
+            self.store.save(completed: {
                 self.updateSuggestions()
-            }
+            })
         }
     }
     

@@ -41,8 +41,9 @@ public protocol LosslessConvertible {
 enum CoreDataTallyStoreError: Error {
     case missingModelObjectModel
     case coreDataNodeLoadToContextFailed
-    case save(NSError)
+    case otherError(NSError)
     case noStoreToArchive
+    case storeNotLoaded
 }
 
 // MARK: - CoreDataTallyStore
@@ -68,8 +69,20 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
         save()
     }
     
-    public func save() {
-        try! self.stack.save(context: stack.mainContext)
+    /**  
+     Save is performed on the same background context queue as observation occurs, so save will not occur
+     untill observations have been completed.
+     
+     - parameter completed: A closure object containing behaviour to perform once save is completed. This closure is performed on the main thread.
+    */
+    public func save(completed: (() -> Void)? = nil) {
+        // Main context is configured to be generational and to automatically consume save notifications 
+        // from other (e.g. background) contexts.
+        try! self.stack.save(context: self.stack.backgroundContext, completed: {
+            DispatchQueue.main.async {
+                completed?()
+            }
+        })
     }
     
     public func archive(as archiveStore: CoreDataStoreInformation) throws {
@@ -78,17 +91,13 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     
     // MARK: TallyStoreType
     public func incrementCount(for sequence: [Node<Item>]) {
-        print("WARNING: Using CoreData increment count without closure")
         incrementCount(for: sequence, completed: nil)
     }
     
     public func incrementCount(for sequence: [Node<Item>], completed closure: (() -> Void)? = nil) {
-        stack.mainContext.refreshAllObjects() // TODO: Understand what this does, and if it's needed
-        
         stack.backgroundContext.perform {
             self.backgroundRoot.incrementCount(for: [Node<Item>.root] + sequence)
-            try! self.stack.save(context: self.stack.backgroundContext)
-            closure?()
+            closure?() // TODO: Consider calling on main queue
         }
     }
     
@@ -153,26 +162,34 @@ fileprivate class CoreDataStack {
         storeContainer.persistentStoreDescriptions = [storeInformation.description]
         storeContainer.loadPersistentStores { description, error in
             storeLoadError = error
-            print(description)
+            print("Store loaded:", description)
         }
         
-        guard let store = storeContainer.persistentStoreCoordinator.persistentStore(for: storeInformation.url), storeLoadError == nil
-            else { throw storeLoadError! }
+        guard let _ = storeContainer.persistentStoreCoordinator.persistentStore(for: storeInformation.url), storeLoadError == nil
+            else {
+                print(storeLoadError)
+                throw CoreDataTallyStoreError.storeNotLoaded
+            }
         
-        print("store")
-        print("- store.identifier", store.identifier)
-        print("- store.isReadOnly", store.isReadOnly)
-        print("- store.metadata", store.metadata)
-        print("- store.options", store.options as Any)
-        print("")
+        // assign main context and background context
+        // merge policy needs to be set because of unique constraint on literal item managed objects
+        // `automaticallyMergesChangesFromParent` is set on the main context so that when saves are 
+        // made on the background context, the main context automatically attempts to refresh any objects
+        // that are currently in context.
+        self.mainContext = storeContainer.viewContext
+        mainContext.automaticallyMergesChangesFromParent = true
+        mainContext.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
         
-        // initalize contexts
-        self.mainContext = CoreDataStack.configure(context: storeContainer.viewContext)
-        self.backgroundContext = CoreDataStack.configure(context: storeContainer.newBackgroundContext())
+        self.backgroundContext =  storeContainer.newBackgroundContext()
+        backgroundContext.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
+        
         self.storeInformation = storeInformation
+        
     }
     
     private func fetchExistingRoot<Item>(from context: NSManagedObjectContext) -> CoreDataNodeWrapper<Item>? where Item: Hashable, Item: LosslessConvertible {
+        // TODO: - could also store the root object id as metadata in the store?
+        // see: https://developer.apple.com/library/content/documentation/Cocoa/Conceptual/CoreData/PersistentStoreFeatures.html
         
         // look for root by fetching node with no parent
         let request: NSFetchRequest<CoreDataNode> = CoreDataNode.fetchRequest()
@@ -194,9 +211,35 @@ fileprivate class CoreDataStack {
         return fetchExistingRoot(from: context) ?? CoreDataNodeWrapper<Item>(in: context)
     }
     
-    fileprivate func save(context: NSManagedObjectContext) throws {
-        if context.hasChanges {
-            try context.save()
+    fileprivate func save(context: NSManagedObjectContext, completed: (() -> Void)? = nil) throws {
+        
+        var saveError: NSError?
+        
+        // always perform save in correct thread
+        context.perform {
+            
+            // if there are no changes, then return early
+            guard context.hasChanges else {
+                completed?()
+                return
+            }
+            
+            // attempt a save, if save fails log and save the error to throw later
+            do {
+                try context.save()
+            }
+            catch {
+                print("save error...")
+                print(error.localizedDescription)
+                saveError = error as NSError
+            }
+            completed?()
+            
+        }
+        
+        // if an error was caught, throw it up to the method caller
+        if let error = saveError {
+            throw CoreDataTallyStoreError.otherError(error)
         }
     }
     
@@ -208,40 +251,43 @@ fileprivate class CoreDataStack {
         guard let currentStore = self.storeContainer.persistentStoreCoordinator.persistentStore(for: storeInformation.url)
             else { throw CoreDataTallyStoreError.noStoreToArchive }
         
-        let options: [String: Any] = [
-            NSSQLiteManualVacuumOption: true,
-            NSSQLitePragmasOption: ["journal_mode": "DELETE"]
-        ]
+        let options: [String: Any]? = {
+            switch archiveStore {
+            case .sqliteStore:
+                return [NSSQLitePragmasOption: ["journal_mode": "DELETE"], NSSQLiteManualVacuumOption: true]
+            default:
+                return nil
+            }
+        }()
         
         try self.storeContainer.persistentStoreCoordinator.migratePersistentStore(currentStore, to: archiveStore.url, options: options, withType: archiveStore.type)
-    }
-    
-    static func configure(context: NSManagedObjectContext) -> NSManagedObjectContext {
-        context.automaticallyMergesChangesFromParent = true
-        context.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
-        return context
     }
 }
 
 // MARK: - CoreDataNodeWrapper
 
 // can not extend NSManangedOjbect as a generic type, so using this as a wrapper
-fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Hashable, Item: LosslessConvertible {
+
+fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Hashable, Item: LosslessConvertible {
     
     fileprivate var _node: CoreDataNode
     private var context: NSManagedObjectContext
+    
+    private var childSet: Set<CoreDataNode> {
+        return self._node.children as? Set<CoreDataNode> ?? Set<CoreDataNode>()
+    }
     
     init(node: CoreDataNode, in context: NSManagedObjectContext) {
         self._node = node
         self.context = context
     }
     
-    init(in context: NSManagedObjectContext) {
+    convenience init(in context: NSManagedObjectContext) {
         let root = CoreDataNode(node: Node<Item>.root, in: context)
         self.init(node: root, in: context)
     }
     
-    init(item: Node<Item>, in context: NSManagedObjectContext) {
+    convenience init(item: Node<Item>, in context: NSManagedObjectContext) {
         let node = CoreDataNode(node: item, in: context)
         self.init(node: node, in: context)
     }
@@ -259,11 +305,7 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
     }
     
     var childNodes: AnySequence<CoreDataNodeWrapper<Item>> {
-        guard let childrenSet = _node.children as? Set<CoreDataNode> else {
-            let empty: [CoreDataNodeWrapper<Item>] = []
-            return AnySequence(empty)
-        }
-        return AnySequence(childrenSet.lazy.map{ return CoreDataNodeWrapper(node: $0, in: self.context) })
+        return AnySequence(childSet.lazy.map{ return CoreDataNodeWrapper(node: $0, in: self.context) })
     }
     
     func findChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item>? {
@@ -279,8 +321,7 @@ fileprivate struct CoreDataNodeWrapper<Item>: TallyStoreNodeType where Item: Has
     
     func makeChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item> {
         let child = CoreDataNodeWrapper(item: item, in: context)
-        _node.addToChildren(child._node)
-        //child._node.parent = _node
+        child._node.parent = _node
         return child
     }
     
@@ -426,6 +467,15 @@ fileprivate extension Node where Item: LosslessConvertible {
         case .sequenceStart: return CoreDataItemType.boundarySequenceStart
         case .unseenLeadingItems: return CoreDataItemType.boundaryUnseenLeadingItems
         case .unseenTrailingItems: return CoreDataItemType.boundaryUnseenTrailingItems
+        }
+    }
+}
+
+extension Dictionary {
+    init(elements:[(Key, Value)]) {
+        self.init()
+        for (key, value) in elements {
+            updateValue(value, forKey: key)
         }
     }
 }

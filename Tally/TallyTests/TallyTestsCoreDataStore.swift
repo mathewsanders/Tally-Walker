@@ -28,8 +28,7 @@ class TallyTestsCoreDataStore: XCTestCase {
     /// Create a two models, both backed by the same Core Data store
     func testStore() {
         
-        let closureExpectation = expectation(description: "Closure")
-        let closureGroup = DispatchGroup()
+        let keepAlive = expectation(description: "keepAlive")
         
         // create a core data store, with an in-memory option (used for testing)
         let testSqlite = try! CoreDataStoreInformation(sqliteStoreNamed: "Test")
@@ -41,22 +40,20 @@ class TallyTestsCoreDataStore: XCTestCase {
         var model = Tally<String>()
         model.store = AnyTallyStore(store)
         
-        closureGroup.enter()
-        model.observe(sequence: ["hello", "world"]) {
-            closureGroup.leave()
-        }
+        model.observe(sequence: ["hello", "world"])
+        model.observe(sequence: ["hello", "kitty"])
         
-        closureGroup.enter()
-        model.observe(sequence: ["hello", "kitty"]) {
-            closureGroup.leave()
-        }
-        
-        closureGroup.notify(queue: DispatchQueue.main) {
-            closureExpectation.fulfill()
-        }
+        store.save(completed: {
+            keepAlive.fulfill()
+        })
         
         waitForExpectations(timeout: 1) { _ in
+            
             // update model with observations
+            let dists = model.distributions()
+            print("dists")
+            dump(dists)
+            
             let modelItemProbabilitiesAfterHello = model.itemProbabilities(after: "hello")
             dump(modelItemProbabilitiesAfterHello)
             XCTAssertTrue(modelItemProbabilitiesAfterHello.count == 2, "Unexpected number of probabilities")
@@ -78,36 +75,33 @@ class TallyTestsCoreDataStore: XCTestCase {
     
     func testSimple() {
         
-        let closureExpectation = expectation(description: "Closure")
+        let keepAlive = expectation(description: "keepAlive")
         
-        let testSqlite = try! CoreDataStoreInformation(sqliteStoreNamed: "Test")
-        try! testSqlite.destroyExistingPersistantStoreAndFiles()
-        
-        // create a core data store, with an in-memory option (used for testing)
-        let store = try! CoreDataTallyStore<String>(store: testSqlite)
+        let testStoreInformation = try! CoreDataStoreInformation(sqliteStoreNamed: "Test123")
+        try! testStoreInformation.destroyExistingPersistantStoreAndFiles()
+
+        let store = try! CoreDataTallyStore<String>(store: testStoreInformation)
         
         // create a model using a CoreData store
         var model = Tally<String>()
         model.store = AnyTallyStore(store)
         
-        // update model with observations
-        model.observe(sequence: ["hello", "world"]) {
-            closureExpectation.fulfill()
-        }
+        model.observe(sequence: ["hello", "again"])
+        
+        store.save(completed: {
+            keepAlive.fulfill()
+        })
         
         waitForExpectations(timeout: 1) { _ in
             let modelItemProbabilitiesAfterHello = model.itemProbabilities(after: "hello")
             dump(modelItemProbabilitiesAfterHello)
-            
-            try! testSqlite.destroyExistingPersistantStoreAndFiles()
         }
     }
     
     /// Create two core data models, distinguished by different names, that operate independently of each other
     func testNamedStores() {
         
-        let closureExpectation = expectation(description: "Closure")
-        let closureGroup = DispatchGroup()
+        let keepAlive = expectation(description: "keepAlive")
         
         let birdsSqlite = try! CoreDataStoreInformation(sqliteStoreNamed: "Birds")
         try! birdsSqlite.destroyExistingPersistantStoreAndFiles()
@@ -116,10 +110,7 @@ class TallyTestsCoreDataStore: XCTestCase {
         var birdModel = Tally<String>()
         birdModel.store = AnyTallyStore(birdStore)
         
-        closureGroup.enter()
-        birdModel.observe(sequence: ["tweet", "tweet"]) {
-            closureGroup.leave()
-        }
+        birdModel.observe(sequence: ["tweet", "tweet"])
         
         let carsSqlite = try! CoreDataStoreInformation(sqliteStoreNamed: "Cars")
         try! carsSqlite.destroyExistingPersistantStoreAndFiles()
@@ -128,16 +119,26 @@ class TallyTestsCoreDataStore: XCTestCase {
         var carModel = Tally<String>()
         carModel.store = AnyTallyStore(carStore)
         
-        closureGroup.enter()
-        carModel.observe(sequence: ["honk", "honk"]) {
-            closureGroup.leave()
-        }
+        carModel.observe(sequence: ["honk", "honk"])
         
-        closureGroup.notify(queue: DispatchQueue.main) {
-            closureExpectation.fulfill()
-        }
+        let saves = DispatchGroup()
+        
+        saves.enter()
+        birdStore.save(completed: {
+            saves.leave()
+        })
+        
+        saves.enter()
+        carStore.save(completed: {
+            saves.leave()
+        })
+        
+        saves.notify(queue: .main, execute: {
+            keepAlive.fulfill()
+        })
         
         waitForExpectations(timeout: 5) { _ in
+            
             let birdModelItemProbabilitiesAfterTweet = birdModel.itemProbabilities(after: "tweet")
             let carModelItemProbabilitiesAfterHonk = carModel.itemProbabilities(after: "honk")
             
