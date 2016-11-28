@@ -27,6 +27,7 @@ public enum CoreDataStoreInformation {
     
     case sqliteStore(at: URL)
     case binaryStore(at: URL)
+    case inMemoryStore(at: URL)
     
     /**
     Physical location of the persistant store
@@ -82,10 +83,16 @@ public enum CoreDataStoreInformation {
         self = .binaryStore(at: url)
     }
     
+    public init(memoryStoreNamed resourceName: String, with resourceExtension: String = "memory", in location: Location = .defaultDirectory) throws {
+        let url = try CoreDataStoreInformation.url(for: resourceName, extension: resourceExtension, location: location)
+        self =  .inMemoryStore(at: url)
+    }
+    
     var type: String {
         switch self {
         case .binaryStore: return NSBinaryStoreType
         case .sqliteStore: return NSSQLiteStoreType
+        case .inMemoryStore: return NSInMemoryStoreType
         }
     }
     
@@ -93,6 +100,7 @@ public enum CoreDataStoreInformation {
         switch self {
         case .binaryStore(let url): return url
         case .sqliteStore(let url): return url
+        case .inMemoryStore(at: let url): return url
         }
     }
     
@@ -117,6 +125,7 @@ public enum CoreDataStoreInformation {
         let storeCoordinator = NSPersistentStoreCoordinator(managedObjectModel: NSManagedObjectModel())
         try storeCoordinator.destroyPersistentStore(at: url, ofType: type, options: nil)
         
+        // in-memory stores have no file, and binary are deleted by `destroyPersistentStore`.
         if case .sqliteStore = self {
             // attempt to delete sqlite file and assocaited -wal and -shm files
             try deleteFileIfExists(fileUrl: url)
@@ -193,11 +202,11 @@ extension NSManagedObject {
                     object = try context.existingObject(with: self.objectID) as? ManagedObjectType
                 }
                     // catch error from loading object from id
-                catch let error { print(error) }
+                catch { print(error) }
             }
         }
             // catch error from saving original context
-        catch let error { print(error) }
+        catch { print(error) }
         
         // if everything has gone without error, this will be the `this` object
         // loaded in the new context, otherwise it will be `nil`
