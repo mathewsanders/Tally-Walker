@@ -48,7 +48,7 @@ public class MemoryTallyStore<Item>: TallyStoreType where Item: Hashable {
 
 // MARK: - TallyStoreNodeType
 
-fileprivate final class MemoryNode<Item>: TallyStoreNodeType where Item: Hashable {
+fileprivate final class MemoryNode<Item>: TallyStoreTreeNode where Item: Hashable {
     
     internal typealias Children = [Node<Item>: MemoryNode<Item>]
     

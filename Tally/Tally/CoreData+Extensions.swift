@@ -213,3 +213,134 @@ extension NSManagedObject {
         return object
     }
 }
+
+
+// MARK: - CoreDataStack
+
+internal class CoreDataStack {
+    
+    let storeContainer: NSPersistentContainer
+    let mainContext: NSManagedObjectContext
+    let backgroundContext: NSManagedObjectContext
+    let storeInformation: CoreDataStoreInformation
+    
+    init(store storeInformation: CoreDataStoreInformation, fromArchive archive: CoreDataStoreInformation? = nil) throws {
+        
+        // load the mom
+        guard let momUrl = Bundle(for: CoreDataStack.self).url(forResource: "TallyStoreModel", withExtension: "momd"),
+            let mom = NSManagedObjectModel(contentsOf: momUrl)
+            else { throw CoreDataTallyStoreError.missingModelObjectModel }
+        
+        var storeLoadError: Error?
+        
+        // request to load store with contents of an achived store
+        if let archive = archive {
+            
+            // if the store already exists, then don't import from the archive
+            if !FileManager.default.fileExists(atPath: storeInformation.url.path) {
+                
+                // initalize archive container and load
+                let archiveContainer = NSPersistentContainer(name: "ArchiveContainer", managedObjectModel: mom)
+                archiveContainer.persistentStoreDescriptions = [archive.description]
+                archiveContainer.loadPersistentStores { _, error in storeLoadError = error }
+                
+                // migrate the archive to the sqlite location
+                guard let archivedStore = archiveContainer.persistentStoreCoordinator.persistentStore(for: archive.url), storeLoadError == nil
+                    else { throw storeLoadError! }
+                
+                // Stores archived by CoreDataStack apply manual vacuum and set journal mode to DELETE
+                // Need to test to see if nil options are passed through the archive options are used
+                // of if the persistant store coordiantors default options are used instead
+                /*
+                 let options: [String: Any] = [
+                 NSSQLiteManualVacuumOption: false,
+                 NSSQLitePragmasOption: ["journal_mode": "WAL"]
+                 ]
+                 */
+                
+                try archiveContainer.persistentStoreCoordinator.migratePersistentStore(archivedStore, to: storeInformation.url, options: nil, withType: storeInformation.type)
+            }
+        }
+        
+        // initalize store container and load
+        storeContainer = NSPersistentContainer(name: "StoreContainer", managedObjectModel: mom)
+        storeContainer.persistentStoreDescriptions = [storeInformation.description]
+        storeContainer.loadPersistentStores { description, error in
+            storeLoadError = error
+            print("Store loaded:", description)
+        }
+        
+        guard let _ = storeContainer.persistentStoreCoordinator.persistentStore(for: storeInformation.url), storeLoadError == nil
+            else {
+                print(storeLoadError)
+                throw CoreDataTallyStoreError.storeNotLoaded
+        }
+        
+        // assign main context and background context
+        // merge policy needs to be set because of unique constraint on literal item managed objects
+        // `automaticallyMergesChangesFromParent` is set on the main context so that when saves are
+        // made on the background context, the main context automatically attempts to refresh any objects
+        // that are currently in context.
+        self.mainContext = storeContainer.viewContext
+        mainContext.automaticallyMergesChangesFromParent = true
+        mainContext.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
+        
+        self.backgroundContext =  storeContainer.newBackgroundContext()
+        backgroundContext.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
+        
+        self.storeInformation = storeInformation
+        
+    }
+    
+    func save(context: NSManagedObjectContext, completed: (() -> Void)? = nil) throws {
+        
+        var saveError: NSError?
+        
+        // always perform save in correct thread
+        context.perform {
+            
+            // if there are no changes, then return early
+            guard context.hasChanges else {
+                completed?()
+                return
+            }
+            
+            // attempt a save, if save fails log and save the error to throw later
+            do {
+                try context.save()
+            }
+            catch {
+                print("save error...")
+                print(error.localizedDescription)
+                saveError = error as NSError
+            }
+            completed?()
+            
+        }
+        
+        // if an error was caught, throw it up to the method caller
+        if let error = saveError {
+            throw CoreDataTallyStoreError.otherError(error)
+        }
+    }
+    
+    // see: https://developer.apple.com/library/content/qa/qa1809/_index.html
+    // see: https://developer.apple.com/library/content/documentation/Cocoa/Conceptual/CoreData/PersistentStoreFeatures.html
+    // see: http://stackoverflow.com/questions/20969996/is-it-safe-to-delete-sqlites-wal-file
+    func archive(as archiveStore: CoreDataStoreInformation) throws {
+        
+        guard let currentStore = self.storeContainer.persistentStoreCoordinator.persistentStore(for: storeInformation.url)
+            else { throw CoreDataTallyStoreError.noStoreToArchive }
+        
+        let options: [String: Any]? = {
+            switch archiveStore {
+            case .sqliteStore:
+                return [NSSQLitePragmasOption: ["journal_mode": "DELETE"], NSSQLiteManualVacuumOption: true]
+            default:
+                return nil
+            }
+        }()
+        
+        try self.storeContainer.persistentStoreCoordinator.migratePersistentStore(currentStore, to: archiveStore.url, options: options, withType: archiveStore.type)
+    }
+}

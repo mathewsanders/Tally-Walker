@@ -214,10 +214,10 @@ public struct Tally<Item: Hashable> {
             let closureGroup = DispatchGroup()
             
             for itemIndex in 0..<recentlyObserved.count {
-                let sequence = recentlyObserved.clamped(by: recentlyObserved.count - itemIndex)
+                let ngram = recentlyObserved.clamped(by: recentlyObserved.count - itemIndex)
                 
                 closureGroup.enter()
-                _store.incrementCount(for: sequence) {
+                _store.incrementCount(for: ngram) {
                     closureGroup.leave()
                 }
             }
@@ -228,8 +228,8 @@ public struct Tally<Item: Hashable> {
         }
         else {
             for itemIndex in 0..<recentlyObserved.count {
-                let sequence = recentlyObserved.clamped(by: recentlyObserved.count - itemIndex)
-                _store.incrementCount(for: sequence)
+                let ngram = recentlyObserved.clamped(by: recentlyObserved.count - itemIndex)
+                _store.incrementCount(for: ngram)
             }
         }
     }
