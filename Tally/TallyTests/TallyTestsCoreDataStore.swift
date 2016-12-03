@@ -54,10 +54,10 @@ class TallyTestsCoreDataStore: XCTestCase {
             print("dists")
             dump(dists)
             
-            let modelItemProbabilitiesAfterHello = model.itemProbabilities(after: "hello")
-            dump(modelItemProbabilitiesAfterHello)
-            XCTAssertTrue(modelItemProbabilitiesAfterHello.count == 2, "Unexpected number of probabilities")
-            XCTAssertTrue(modelItemProbabilitiesAfterHello[0].probability == 0.5, "Unexpected probability")
+            let probabilitiesAfterHello = model.elementProbabilities(after: "hello")
+            dump(probabilitiesAfterHello)
+            XCTAssertTrue(probabilitiesAfterHello.count == 2, "Unexpected number of probabilities")
+            XCTAssertTrue(probabilitiesAfterHello[0].probability == 0.5, "Unexpected probability")
             
             // create a new model, using the same store
             var newModel = Tally<String>()
@@ -65,9 +65,9 @@ class TallyTestsCoreDataStore: XCTestCase {
             
             // although this model hasn't observed any sequences, because it uses the same store,
             // it should also have the same probabilities as the first model
-            let newModelItemProbabilitiesAfterHello = newModel.itemProbabilities(after: "hello")
-            XCTAssertTrue(newModelItemProbabilitiesAfterHello.count == 2, "Unexpected number of probabilities")
-            XCTAssertTrue(newModelItemProbabilitiesAfterHello[0].probability == 0.5, "Unexpected probability")
+            let newModelProbabilitiesAfterHello = newModel.elementProbabilities(after: "hello")
+            XCTAssertTrue(newModelProbabilitiesAfterHello.count == 2, "Unexpected number of probabilities")
+            XCTAssertTrue(newModelProbabilitiesAfterHello[0].probability == 0.5, "Unexpected probability")
             
             try! testSqlite.destroyExistingPersistantStoreAndFiles()
         }
@@ -93,8 +93,8 @@ class TallyTestsCoreDataStore: XCTestCase {
         })
         
         waitForExpectations(timeout: 1) { _ in
-            let modelItemProbabilitiesAfterHello = model.itemProbabilities(after: "hello")
-            dump(modelItemProbabilitiesAfterHello)
+            let probabilitiesAfterHello = model.elementProbabilities(after: "hello")
+            dump(probabilitiesAfterHello)
         }
     }
     
@@ -139,18 +139,18 @@ class TallyTestsCoreDataStore: XCTestCase {
         
         waitForExpectations(timeout: 5) { _ in
             
-            let birdModelItemProbabilitiesAfterTweet = birdModel.itemProbabilities(after: "tweet")
-            let carModelItemProbabilitiesAfterHonk = carModel.itemProbabilities(after: "honk")
+            let birdModelProbabilitiesAfterTweet = birdModel.elementProbabilities(after: "tweet")
+            let carModelProbabilitiesAfterHonk = carModel.elementProbabilities(after: "honk")
             
             // expect: [(0.5, "tweet"), (0.5, unseenTrailingItems)]
-            dump(birdModelItemProbabilitiesAfterTweet)
-            XCTAssertTrue(birdModelItemProbabilitiesAfterTweet.count == 2, "Unexpected number of probabilities")
-            XCTAssertTrue(birdModelItemProbabilitiesAfterTweet[0].probability == 0.5, "Unexpected probability")
+            dump(birdModelProbabilitiesAfterTweet)
+            XCTAssertTrue(birdModelProbabilitiesAfterTweet.count == 2, "Unexpected number of probabilities")
+            XCTAssertTrue(birdModelProbabilitiesAfterTweet[0].probability == 0.5, "Unexpected probability")
             
-            dump(carModelItemProbabilitiesAfterHonk)
+            dump(carModelProbabilitiesAfterHonk)
             // expect: [(0.5, "honk"), (0.5, unseenTrailingItems)]
-            XCTAssertTrue(carModelItemProbabilitiesAfterHonk.count == 2, "Unexpected number of probabilities")
-            XCTAssertTrue(carModelItemProbabilitiesAfterHonk[0].probability == 0.5, "Unexpected probability")
+            XCTAssertTrue(carModelProbabilitiesAfterHonk.count == 2, "Unexpected number of probabilities")
+            XCTAssertTrue(carModelProbabilitiesAfterHonk[0].probability == 0.5, "Unexpected probability")
             
             try! birdsSqlite.destroyExistingPersistantStoreAndFiles()
             try! carsSqlite.destroyExistingPersistantStoreAndFiles()

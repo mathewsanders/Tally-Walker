@@ -106,7 +106,7 @@ class TallyTests: XCTestCase {
             model.endSequence()
         }
         
-        XCTAssertTrue(model.startingItems().count == startingWords.keys.count, "Problem with starting words in model")
+        XCTAssertTrue(model.startingElements().count == startingWords.keys.count, "Problem with starting words in model")
         XCTAssertTrue(model.distributions().count == allWords.keys.count, "Problem with number of words in model")
         
     }

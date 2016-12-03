@@ -29,15 +29,12 @@ public protocol LosslessConvertible {
     var losslessRepresentation: CoreDataTallyStoreLosslessRepresentation { get }
 }
 
-/**
- Error raised when using CoreDataTallyStore
- 
- - missingModelObjectModel: The file 'TallyStoreModel.xcdatamodeld' could not be loaded.
- - coreDataNodeLoadToContextFailed: Attempt to load a node into a new context has failed.
- - save: Attempt to save context has failed.
- - noStoreToArchive: Request to archive a store failed because store does not exist.
- 
- */
+/// Error raised when using CoreDataTallyStore
+///
+/// - missingModelObjectModel: The file 'TallyStoreModel.xcdatamodeld' could not be loaded.
+/// - coreDataNodeLoadToContextFailed: Attempt to load a node into a new context has failed.
+/// - save: Attempt to save context has failed.
+/// - noStoreToArchive: Request to archive a store failed because store does not exist.
 enum CoreDataTallyStoreError: Error {
     case missingModelObjectModel
     case coreDataNodeLoadToContextFailed
@@ -98,12 +95,11 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
         catch { return nil }
     }
     
-    /**  
-     Save is performed on the same background context queue as observation occurs, so save will not occur
-     untill observations have been completed.
-     
-     - parameter completed: A closure object containing behaviour to perform once save is completed. This closure is performed on the main thread.
-    */
+    /// Save is performed on the same background context queue as observation occurs, so save will not occur
+    /// untill observations have been completed.
+    ///
+    /// - parameter completed: A closure object containing behaviour to perform once save is completed. 
+    /// This closure is performed on the main thread.
     public func save(completed: (() -> Void)? = nil) {
         // Main context is configured to be generational and to automatically consume save notifications 
         // from other (e.g. background) contexts.
@@ -124,23 +120,23 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     }
     
     // MARK: TallyStoreType
-    public func incrementCount(for ngram: [Node<Item>]) {
+    public func incrementCount(for ngram: [NgramElement<Item>]) {
         incrementCount(for: ngram, completed: nil)
     }
     
-    public func incrementCount(for ngram: [Node<Item>], completed closure: (() -> Void)? = nil) {
+    public func incrementCount(for ngram: [NgramElement<Item>], completed closure: (() -> Void)? = nil) {
         stack.backgroundContext.perform {
-            self.backgroundRoot.incrementCount(for: [Node<Item>.root] + ngram)
+            self.backgroundRoot.incrementCount(for: [NgramElement<Item>.root] + ngram)
             closure?() // TODO: Consider calling on main queue
         }
     }
     
-    public func itemProbabilities(after sequence: [Node<Item>]) -> [(probability: Double, item: Node<Item>)] {
-        return mainRoot.itemProbabilities(after: [Node<Item>.root] + sequence)
+    public func nextElement(following elements: [NgramElement<Item>]) -> [(probability: Double, element: NgramElement<Item>)] {
+        return mainRoot.nextElement(following: [NgramElement<Item>.root] + elements)
     }
     
-    public func distributions(excluding excludedItems: [Node<Item>]) -> [(probability: Double, item: Node<Item>)] {
-        return mainRoot.distributions(excluding: excludedItems)
+    public func distributions(excluding excludedElements: [NgramElement<Item>]) -> [(probability: Double, element: NgramElement<Item>)] {
+        return mainRoot.distributions(excluding: excludedElements)
     }
 }
 
@@ -149,7 +145,7 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
 /// A generic wrapper for the `CoreDataNode` managed object.
 fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreTreeNode where Item: Hashable, Item: LosslessConvertible {
     
-    fileprivate var _node: CoreDataNode
+    private var _node: CoreDataNode
     private var context: NSManagedObjectContext
     
     private var childSet: Set<CoreDataNode> {
@@ -162,12 +158,12 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreTreeNode where Item
     }
     
     convenience init(in context: NSManagedObjectContext) {
-        let root = CoreDataNode(node: Node<Item>.root, in: context)
+        let root = CoreDataNode(element: NgramElement<Item>.root, in: context)
         self.init(node: root, in: context)
     }
     
-    convenience init(item: Node<Item>, in context: NSManagedObjectContext) {
-        let node = CoreDataNode(node: item, in: context)
+    convenience init(element: NgramElement<Item>, in context: NSManagedObjectContext) {
+        let node = CoreDataNode(element: element, in: context)
         self.init(node: node, in: context)
     }
     
@@ -187,32 +183,32 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreTreeNode where Item
         return AnySequence(childSet.lazy.map{ return CoreDataNodeWrapper(node: $0, in: self.context) })
     }
     
-    func findChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item>? {
+    func findChildNode(with element: NgramElement<Item>) -> CoreDataNodeWrapper<Item>? {
         return childNodes.first(where: { childNode in
-            return childNode.item(is: item)
+            return childNode.element(is: element)
         })
     }
     
     // nodeType is cheaper check than unrwapping node, so do this first
-    private func item(is node: Node<Item>) -> Bool {
-        return self._node.itemType == node.itemType && node == self.node
+    private func element(is element: NgramElement<Item>) -> Bool {
+        return element.elementType == self._node.elementType  && element == self.element
     }
     
-    func makeChildNode(with item: Node<Item>) -> CoreDataNodeWrapper<Item> {
-        let child = CoreDataNodeWrapper(item: item, in: context)
+    func makeChildNode(with element: NgramElement<Item>) -> CoreDataNodeWrapper<Item> {
+        let child = CoreDataNodeWrapper(element: element, in: context)
         child._node.parent = _node
         return child
     }
     
     // profiling is showing that this is a bottleneck, especially the initializer
-    var node: Node<Item> {
+    var element: NgramElement<Item> {
         
-        switch self._node.itemType {
-        case .root: return Node<Item>.root
-        case .boundaryUnseenLeadingItems: return Node<Item>.unseenLeadingItems
-        case .boundaryUnseenTrailingItems: return Node<Item>.unseenTrailingItems
-        case .boundarySequenceStart: return Node<Item>.sequenceStart
-        case .boundarySequenceEnd: return Node<Item>.sequenceEnd
+        switch self._node.elementType {
+        case .root: return NgramElement<Item>.root
+        case .boundaryUnseenLeadingItems: return NgramElement<Item>.unseenLeadingItems
+        case .boundaryUnseenTrailingItems: return NgramElement<Item>.unseenTrailingItems
+        case .boundarySequenceStart: return NgramElement<Item>.sequenceStart
+        case .boundarySequenceEnd: return NgramElement<Item>.sequenceEnd
             
         case .literalItem:
             // grab the lossless representation of the literal item, this could involve expensive transformable property
@@ -220,7 +216,7 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreTreeNode where Item
             guard let lossless = losslessRepresentation, let item = Item(lossless)
                 else { fatalError("CoreDataNodeWrapper internal inconsistancy \(losslessRepresentation)") }
             
-            return Node<Item>.item(item)
+            return NgramElement<Item>.item(item)
         }
     }
 }
@@ -229,7 +225,7 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreTreeNode where Item
 
 // TODO: Review if this is a bottleneck
 // http://stackoverflow.com/a/32421787/1060154
-fileprivate enum CoreDataItemType: Int16 {
+fileprivate enum CoreDataElementType: Int16 {
     case root = 0
     case boundaryUnseenTrailingItems
     case boundaryUnseenLeadingItems
@@ -240,21 +236,21 @@ fileprivate enum CoreDataItemType: Int16 {
 
 fileprivate extension CoreDataNode {
 
-    convenience init<Item: LosslessConvertible>(node: Node<Item>, in context: NSManagedObjectContext) {
+    convenience init<Item: LosslessConvertible>(element: NgramElement<Item>, in context: NSManagedObjectContext) {
         self.init(context: context)
         
-        self.itemType = node.itemType
+        self.elementType = element.elementType
         
-        if let losslessRepresentation = node.item?.losslessRepresentation {
+        if let losslessRepresentation = element.item?.losslessRepresentation {
             self.literalItem = CoreDataLiteralItem(with: losslessRepresentation, in: context)
         }
     }
     
-    var itemType: CoreDataItemType {
-        set { itemTypeInt16Value = newValue.rawValue }
+    var elementType: CoreDataElementType {
+        set { elementTypeInt16Value = newValue.rawValue }
         get {
-            guard let type = CoreDataItemType(rawValue: itemTypeInt16Value)
-                else { fatalError("CoreDataNode internal inconsistancy \(itemTypeInt16Value)") }
+            guard let type = CoreDataElementType(rawValue: elementTypeInt16Value)
+                else { fatalError("CoreDataNode internal inconsistancy \(elementTypeInt16Value)") }
             
             return type
         }
@@ -333,16 +329,16 @@ fileprivate extension CoreDataLiteralItem {
 
 // MARK: - Node<Item> extension
 
-fileprivate extension Node where Item: LosslessConvertible {
+fileprivate extension NgramElement where Item: LosslessConvertible {
     
-    var itemType: CoreDataItemType {
+    var elementType: CoreDataElementType {
         switch self {
-        case .item: return CoreDataItemType.literalItem
-        case .root: return CoreDataItemType.root
-        case .sequenceEnd: return CoreDataItemType.boundarySequenceEnd
-        case .sequenceStart: return CoreDataItemType.boundarySequenceStart
-        case .unseenLeadingItems: return CoreDataItemType.boundaryUnseenLeadingItems
-        case .unseenTrailingItems: return CoreDataItemType.boundaryUnseenTrailingItems
+        case .item: return CoreDataElementType.literalItem
+        case .root: return CoreDataElementType.root
+        case .sequenceEnd: return CoreDataElementType.boundarySequenceEnd
+        case .sequenceStart: return CoreDataElementType.boundarySequenceStart
+        case .unseenLeadingItems: return CoreDataElementType.boundaryUnseenLeadingItems
+        case .unseenTrailingItems: return CoreDataElementType.boundaryUnseenTrailingItems
         }
     }
 }

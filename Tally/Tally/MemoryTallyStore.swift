@@ -22,27 +22,28 @@
 
 import Foundation
 
-/// A simple Tally store that uses a Dictionary represent the state of a Tally model.
+/// A simple Tally store that uses a Dictionary to create an in-memory store of a Tally model.
+/// This store is intended for transient Tally models.
 public class MemoryTallyStore<Item>: TallyStoreType where Item: Hashable {
     
     private var root: MemoryNode<Item>
     
     public init() {
-        self.root = MemoryNode(withItem: .root)
+        self.root = MemoryNode(withElement: .root)
     }
     
     // MARK: TallyStoreType
     
-    public func incrementCount(for sequence: [Node<Item>]) {
-        root.incrementCount(for: [root.node] + sequence)
+    public func incrementCount(for ngram: [NgramElement<Item>]) {
+        root.incrementCount(for: [root.element] + ngram)
     }
     
-    public func itemProbabilities(after sequence: [Node<Item>]) -> [(probability: Double, item: Node<Item>)] {
-        return root.itemProbabilities(after: [root.node] + sequence)
+    public func nextElement(following elements: [NgramElement<Item>]) -> [(probability: Double, element: NgramElement<Item>)] {
+        return root.nextElement(following: [root.element] + elements)
     }
     
-    public func distributions(excluding excludedItems: [Node<Item>] = []) -> [(probability: Double, item: Node<Item>)] {
-        return root.distributions(excluding: excludedItems)
+    public func distributions(excluding excludedElements: [NgramElement<Item>] = []) -> [(probability: Double, element: NgramElement<Item>)] {
+        return root.distributions(excluding: excludedElements)
     }
 }   
 
@@ -50,27 +51,27 @@ public class MemoryTallyStore<Item>: TallyStoreType where Item: Hashable {
 
 fileprivate final class MemoryNode<Item>: TallyStoreTreeNode where Item: Hashable {
     
-    internal typealias Children = [Node<Item>: MemoryNode<Item>]
+    typealias Children = [NgramElement<Item>: MemoryNode<Item>]
     
-    internal let node: Node<Item>
-    internal var count: Double = 0
-    internal var children: Children = [:]
+    let element: NgramElement<Item>
+    var count: Double = 0
+    var children: Children = [:]
     
-    required init(withItem node: Node<Item> = .root) {
-        self.node = node
+    required init(withElement element: NgramElement<Item> = .root) {
+        self.element = element
     }
     
-    public var childNodes: AnySequence<MemoryNode<Item>>{
+    var childNodes: AnySequence<MemoryNode<Item>>{
         return AnySequence(children.values)
     }
     
-    public func findChildNode(with item: Node<Item>) -> MemoryNode<Item>? {
-        return children[item]
+    func findChildNode(with element: NgramElement<Item>) -> MemoryNode<Item>? {
+        return children[element]
     }
     
-    public func makeChildNode(with item: Node<Item>) -> MemoryNode<Item> {
-        let child = MemoryNode<Item>(withItem: item)
-        children[child.node] = child
+    func makeChildNode(with element: NgramElement<Item>) -> MemoryNode<Item> {
+        let child = MemoryNode<Item>(withElement: element)
+        children[child.element] = child
         return child
     }
 }

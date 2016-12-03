@@ -29,55 +29,49 @@ public enum CoreDataStoreInformation {
     case binaryStore(at: URL)
     case inMemoryStore(at: URL)
     
-    /**
-    Physical location of the persistant store
-     
-    - mainBundle: the application's main bundle, resources here are read only.
-    - defaultDirectory: the default directory created by NSPersistentContainer, resources here are read/write safe.
-    - directory(at: URL): any other location, caller is responsable for read/write safety of the resource.
-     */
+    /// Physical location of the persistant store
+    ///
+    /// - mainBundle: the application's main bundle, resources here are read only.
+    /// - defaultDirectory: the default directory created by NSPersistentContainer, resources here are read/write safe.
+    /// - directory(at: URL): any other location, caller is responsable for read/write safety of the resource.
     public enum Location {
         case mainBundle
         case defaultDirectory
         case directory(at: URL)
     }
     
-    /**
-    Error raised when using CoreDataStoreInformation
-     
-    - mainBundleResourceNotFound:
-        Attempted to initilize `CoreDataStoreInformation` describing a resource within the main bundle that does not exist
-     
-     */
+    /// Error raised when using CoreDataStoreInformation
+    ///
+    /// - mainBundleResourceNotFound:
+    ///   Attempted to initilize `CoreDataStoreInformation` describing a resource within the main 
+    ///   bundle that does not exist
     enum CoreDataStoreInformationError: Error {
         case mainBundleResourceNotFound
     }
     
-    /**
-    Initializes information for a sqlite resource with a name, extension, and location.
-     
-    - Parameters:
-        - resourceName: The name of the resource.
-        - resourceExtension: The extension of the resource, default is 'sqlite'.
-        - location: Location of the resource, default is `Location.defaultDirectory`.
-     
-     - Throws: CoreDataStoreInformationError.mainBundleResourceNotFound when attempting to describe a resource in the main bundle that does not exist.
-     */
+    /// Initializes information for a sqlite resource with a name, extension, and location.
+    ///
+    /// - Parameters:
+    ///     - resourceName: The name of the resource.
+    ///     - resourceExtension: The extension of the resource, default is 'sqlite'.
+    ///     - location: Location of the resource, default is `Location.defaultDirectory`.
+    ///
+    ///  - Throws: CoreDataStoreInformationError.mainBundleResourceNotFound when attempting to describe a 
+    ///            resource in the main bundle that does not exist.
     public init(sqliteStoreNamed resourceName: String, with resourceExtension: String = "sqlite", in location: Location = .defaultDirectory) throws {
         let url = try CoreDataStoreInformation.url(for: resourceName, extension: resourceExtension, location: location)
         self = .sqliteStore(at: url)
     }
     
-    /**
-     Initializes information for a binary resource with a name, extension, and location.
-     
-     - Parameters:
-        - resourceName: The name of the resource.
-        - resourceExtension: The extension of the resource, default is 'binary'.
-        - location: Location of the resource, default is `Location.defaultDirectory`.
-     
-     - Throws: CoreDataStoreInformationError.mainBundleResourceNotFound when attempting to describe a resource in the main bundle that does not exist.
-     */
+    /// Initializes information for a binary resource with a name, extension, and location.
+    ///
+    /// - Parameters:
+    ///    - resourceName: The name of the resource.
+    ///    - resourceExtension: The extension of the resource, default is 'binary'.
+    ///    - location: Location of the resource, default is `Location.defaultDirectory`.
+    ///
+    /// - Throws: CoreDataStoreInformationError.mainBundleResourceNotFound when attempting to describe a resource 
+    ///           in the main bundle that does not exist.
     public init(binaryStoreNamed resourceName: String, with resourceExtension: String = "binary", in location: Location = .defaultDirectory) throws {
         let url = try CoreDataStoreInformation.url(for: resourceName, extension: resourceExtension, location: location)
         self = .binaryStore(at: url)
@@ -110,13 +104,11 @@ public enum CoreDataStoreInformation {
         return _description
     }
     
-    /**
-     Attempts to safely tear down a persistant store, and remove physical components.
-     
-     Throws: 
-        - Will (presumably) throw an error if the if the store can not be safely removed.
-        - Will throw an error if attempting to remove a resource from the mainBundle.
-     */
+    /// Attempts to safely tear down a persistant store, and remove physical components.
+    ///
+    /// Throws: 
+    ///    - If the if the store can not be safely removed.
+    ///    - When attempting to remove a resource from the mainBundle.
     public func destroyExistingPersistantStoreAndFiles() throws {
         
         // items in the application bundle are read only
@@ -167,19 +159,17 @@ fileprivate extension URL {
 
 extension NSManagedObject {
     
-    /**
-     Attempts to safely load this object in a new context.
-     
-     **Note:** This method may perform I/O to the backing persistant store.
-     
-     Will fail in the following situations: 
-     - This object does not have a managed object context.
-     - This object has changes, but could not be saved.
-     - The backing persistant store does not have a record of this object.
-     
-     Returns: `nil` if this object could not be loaded into the new context, otherwise returns an instance of NSManagedObject in the new context.
-     
-     */
+    /// Attempts to safely load this object in a new context.
+    ///
+    /// **Note:** This method may perform I/O to the backing persistant store.
+    ///
+    /// Will fail in the following situations:
+    /// - This object does not have a managed object context.
+    /// - This object has changes, but could not be saved.
+    /// - The backing persistant store does not have a record of this object.
+    ///
+    /// Returns: `nil` if this object could not be loaded into the new context, otherwise returns an instance 
+    ///          of NSManagedObject in the new context.
     func loaded<ManagedObjectType: NSManagedObject>(in context: NSManagedObjectContext) -> ManagedObjectType? {
         
         var object: ManagedObjectType? = nil
@@ -272,12 +262,13 @@ internal class CoreDataStack {
         
         guard let _ = storeContainer.persistentStoreCoordinator.persistentStore(for: storeInformation.url), storeLoadError == nil
             else {
-                print(storeLoadError)
+                print(storeLoadError as Any)
                 throw CoreDataTallyStoreError.storeNotLoaded
         }
         
-        // assign main context and background context
-        // merge policy needs to be set because of unique constraint on literal item managed objects
+        // Assign main context and background context.
+        //
+        // Merge policy needs to be set because of unique constraint on literal item managed objects
         // `automaticallyMergesChangesFromParent` is set on the main context so that when saves are
         // made on the background context, the main context automatically attempts to refresh any objects
         // that are currently in context.

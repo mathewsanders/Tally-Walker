@@ -23,6 +23,11 @@
 import Foundation
 
 /// Options for the type of sequence that can be represented.
+/// 
+/// - `continuousSequence`: Represents sequences where there is no arbitary beginning or end of data,
+///   for example weather patterns.
+/// - `discreteSequence`: Represents sequences where there the beginning and end of the sequence is 
+///   meaningful, for example sentences.
 public enum TallySequenceType: Int {
     
     /// Represents sequences where there is no arbitary beginning or end of data, for example weather patterns.
@@ -44,7 +49,7 @@ public enum TallySequenceType: Int {
 
 // MARK: -
 
-/// Options for different types of n-grams.
+/// Options for the size of an n-gram.
 public enum NgramType {
     
     /// An n-gram of two consequitive items
@@ -73,19 +78,22 @@ public enum NgramType {
 
 // MARK: -
 
-/// Use Tally to build a frequency model of items of n-grams based from observed sequences.
+/// A Tally is an interface to building a frequency model of n-grams from observed sequences.
 ///
-/// Can be used with any items that adopt the `Hashable` protocol.
+/// Can be used with any item that adopts the `Hashable` protocol.
 public struct Tally<Item: Hashable> {
     
     /// Type used to identify an item
     public typealias Id = String
     
-    /// An ItemProbability is a tuple combining an item, and it's probability.
+    /// An array of tuples representing an element, and the probability of the element occuring next in a sequence.
     ///
-    /// - probability is a `Double` between 0.0 and 1.0
-    /// - item is a `Node` which may represent a literal item, or a sequence boundary
-    public typealias ItemProbability = (probability: Double, item: Node<Item>)
+    /// - probability is a `Double` between 0.0 and 1.0.
+    /// - element may be a literal item, or a sequence boundary.
+    ///
+    /// The array may be empty.
+    /// If the array is not empty, the sum of probabilities should approach 1.0.
+    public typealias ElementProbabilities = [(probability: Double, element: NgramElement<Item>)]
     
     /// The type of n-gram to use when building the frequency model.
     public let ngram: NgramType
@@ -103,9 +111,9 @@ public struct Tally<Item: Hashable> {
         return store ?? _memoryStore // use external store if it exists, fall back in in-memory store
     }
     
-    internal var recentlyObserved: [Node<Item>]
+    private var recentlyObserved: [NgramElement<Item>]
     
-    /// Initializes and returns a new tally object.
+    /// Initializes and returns a new Tally object.
     ///
     /// - parameter sequenceType: The type of sequence this model represents (default value is `SequenceType.continuousSequence`).
     /// - parameter ngram: The type of n-gram to use when building the frequency model (default value is `Ngram.bigram`).
@@ -126,12 +134,12 @@ public struct Tally<Item: Hashable> {
     /// Start a series of method calls to observe an item from a sequence.
     public mutating func startSequence(completed closure: (() -> Void)? = nil) {
         recentlyObserved.removeAll()
-        observe(next: nodeForStart, completed: closure)
+        observe(next: elementForStart, completed: closure)
     }
     
     /// Conclude a series of method calls to observe an item from a sequence.
     public mutating func endSequence(completed: (() -> Void)? = nil) {
-        observe(next: nodeForEnd, completed: completed)
+        observe(next: elementForEnd, completed: completed)
         recentlyObserved.removeAll()
     }
     
@@ -154,7 +162,7 @@ public struct Tally<Item: Hashable> {
     /// model.endSequence()
     /// ~~~~
     public mutating func observe(next item: Item, completed closure: (() -> Void)? = nil) {
-        observe(next: Node.item(item), completed: closure)
+        observe(next: NgramElement.item(item), completed: closure)
     }
     
     /// Observes a sequence of items.
@@ -205,9 +213,9 @@ public struct Tally<Item: Hashable> {
         }
     }
     
-    internal mutating func observe(next node: Node<Item>, completed: (() -> Void)? = nil) {
+    private mutating func observe(next element: NgramElement<Item>, completed: (() -> Void)? = nil) {
         
-        recentlyObserved.append(node)
+        recentlyObserved.append(element)
         recentlyObserved.clamp(to: ngram.size)
         
         if let completed = completed {
@@ -234,68 +242,69 @@ public struct Tally<Item: Hashable> {
         }
     }
     
-    /// Get the overall relative frequencies of individual items in the model.
+    /// Get the overall relative frequencies of individual elements in the model.
     ///
-    /// - parameter excludedItems: An array of items to exclude from the calculation.
+    /// - parameter excludedElements: An array of elements to exclude from frequencies.
     ///
-    /// - returns: An array of item probabilities which may be empty.
-    public func distributions(excluding excludedItems: [Node<Item>] = []) -> [ItemProbability] {
-        return _store.distributions(excluding: excludedItems)
+    /// - returns: An array of element probabilities.
+    public func distributions(excluding excludedElements: [NgramElement<Item>] = []) -> ElementProbabilities {
+        return _store.distributions(excluding: excludedElements)
     }
     
-    /// Get the distribution of items that represent items that have started a sequence.
+    /// Get the distribution of elements that have started a sequence.
     ///
-    /// For models representing continuous sequences, starting items are arbitary so the relative frequency of individual items is used instead.
+    /// For models representing continuous sequences, starting elements are arbitary so the relative
+    /// frequency of individual elements is used instead.
     ///
-    /// - returns: An array of item probabilities which may be empty.
-    public func startingItems() -> [ItemProbability] {
+    /// - returns: Probabilities of elements starting a sequence.
+    public func startingElements() -> ElementProbabilities {
         switch sequence {
         case .continuousSequence: return distributions()
-        case .discreteSequence: return itemProbabilities(after: Node.sequenceStart)
+        case .discreteSequence: return elementProbabilities(after: NgramElement.sequenceStart)
         }
     }
     
-    /// Get the probabilities of items that have observed to follow an individual item.
+    /// Get the probabilities of elements expected to occur after an individual item.
     ///
     /// - parameter item: The item used to check the frequency model.
     ///
-    /// - returns: An array of item probabilities. If the model has no record of this item an empty array is returned.
-    public func itemProbabilities(after item: Item) -> [ItemProbability] {
-        return self.itemProbabilities(after: [item])
+    /// - returns: Probabilities of an element occuring after the given item. This may return an empty array.
+    public func elementProbabilities(after item: Item) -> ElementProbabilities {
+        return self.elementProbabilities(following: [item])
     }
     
-    /// Get the probabilities of items that have observed to follow a sequence of items.
+    /// Get the probabilities of elements that have observed to follow a sequence of items.
     ///
-    /// - parameter sequence: The array of items used to check the frequency model. The length of this array should be less than the size of the n-gram used to build the frequency model.
+    /// - parameter sequence: The array of items used to check the frequency model. The length of this array should be less than the size of the n-grams used to build the model.
     ///
     /// *Note:* If this array is larger, or the same size as the size of n-gram used to build this model, then this array will automatically be truncated to the largest size that the model can use.
     ///
-    /// returns: An array of item probabilities. If the model has no record of this item an empty array is returned.
-    public func itemProbabilities(after sequence: [Item]) -> [ItemProbability] {
-        let items = sequence.map({ item in return Node.item(item) })
-        return self.itemProbabilities(after: items)
+    /// returns: Probabilities of an element occuring after the given item. This may return an empty array.
+    public func elementProbabilities(following sequence: [Item]) -> ElementProbabilities {
+        let elements = sequence.map({ item in return NgramElement.item(item) })
+        return self.elementProbabilities(following: elements)
     }
     
-    public func itemProbabilities(after node: Node<Item>) -> [ItemProbability] {
-        return self.itemProbabilities(after: [node])
+    private func elementProbabilities(after element: NgramElement<Item>) -> ElementProbabilities {
+        return self.elementProbabilities(following: [element])
     }
     
-    public func itemProbabilities(after nodes: [Node<Item>]) -> [ItemProbability] {
-        if ngram.size <= nodes.count {
-            print("Tally.items(following:) Warning: attempting to match sequence of \(nodes.count) items, which exceeds the n-gram size of \(ngram.size). The sequence of items has been automatically clamped to \(ngram.size-1)")
+    private func elementProbabilities(following elements: [NgramElement<Item>]) -> ElementProbabilities {
+        if ngram.size <= elements.count {
+            print("Tally.items(following:) Warning: attempting to match sequence of \(elements.count) items, which exceeds the n-gram size of \(ngram.size). The sequence of items has been automatically clamped to \(ngram.size-1)")
         }
-        let tail = nodes.clamped(by: ngram.size-1)
-        return _store.itemProbabilities(after: tail)
+        let tail = elements.clamped(by: ngram.size-1)
+        return _store.nextElement(following: tail)
     }
     
-    internal var nodeForStart: Node<Item> {
+    private var elementForStart: NgramElement<Item> {
         switch self.sequence {
         case .continuousSequence: return .unseenLeadingItems
         case .discreteSequence: return .sequenceStart
         }
     }
     
-    internal var nodeForEnd: Node<Item> {
+    private var elementForEnd: NgramElement<Item> {
         switch self.sequence {
         case .continuousSequence: return .unseenTrailingItems
         case .discreteSequence: return .sequenceEnd
@@ -304,13 +313,15 @@ public struct Tally<Item: Hashable> {
 }
 
 // MARK: -
+// see: https://github.com/apple/swift/blob/master/docs/GenericsManifesto.md#nested-generics
 
-/// Different types of nodes used to represent ngram.
+
+/// An element within an ngram.
 ///
-/// Nodes may represent an actual item in a sequence, or a sequence boundary.
-public enum Node<Item: Hashable>: Hashable {
+/// An element may represent an item observed from a sequence, or represent a sequence boundary.
+public enum NgramElement<Item: Hashable>: Hashable {
     
-    /// A literal item in the sequence.
+    /// A literal item.
     case item(Item)
     
     /// Represents unseen items that come before the observed segment of a continuous sequence.
@@ -326,7 +337,7 @@ public enum Node<Item: Hashable>: Hashable {
     case sequenceEnd
     
     /// The root node
-    case root
+    case root // TODO: Can I remove this, and instead represent root nodes by using nil
     
     /// The item this node represents, or nil if the node represents a sequence boundary.
     public var item: Item? {
@@ -369,7 +380,7 @@ public enum Node<Item: Hashable>: Hashable {
     /// - Parameters:
     ///   - lhs: A value to compare.
     ///   - rhs: Another value to compare.
-    public static func ==(lhs: Node<Item>, rhs: Node<Item>) -> Bool {
+    public static func ==(lhs: NgramElement<Item>, rhs: NgramElement<Item>) -> Bool {
         switch (lhs, rhs) {
         case (.root, .root): return true
         case (.sequenceStart, .sequenceStart): return true
