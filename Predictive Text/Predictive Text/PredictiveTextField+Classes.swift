@@ -52,11 +52,11 @@ extension PredictiveTextField {
         func updateSuggestions() {
             
             let lastWord = target.words.last ?? ""
-            let nextItems = target.model.itemProbabilities(after: lastWord).filter(onlyItemNodes).sorted(by: orderProbabilities)
+            let nextElements = target.model.elementProbabilities(after: lastWord).filter(onlyItemNodes).sorted(by: orderProbabilities)
             
-            let allSuggestions = nextItems.isEmpty ? target.model.startingItems().sorted(by: orderProbabilities) : nextItems
+            let allSuggestions = nextElements.isEmpty ? target.model.startingElements().sorted(by: orderProbabilities) : nextElements
             
-            suggestions = allSuggestions.prefix(3).flatMap({ $0.item.item })
+            suggestions = allSuggestions.prefix(3).flatMap({ $0.element.item })
             
             suggestionsStack.arrangedSubviews.forEach({ subview in
                 suggestionsStack.removeArrangedSubview(subview)
@@ -69,13 +69,13 @@ extension PredictiveTextField {
             })
         }
         
-        typealias Probability = Tally<String>.ItemProbability
+        typealias Probability = (probability: Double, element: NgramElement<String>)
         private func orderProbabilities(lhs: Probability, rhs: Probability) -> Bool {
             return lhs.probability > rhs.probability
         }
         
-        private func onlyItemNodes(item: Probability) -> Bool {
-            return item.item.item != nil
+        private func onlyItemNodes(elementProbability: Probability) -> Bool {
+            return elementProbability.element.item != nil
         }
         
         required init?(coder aDecoder: NSCoder) {

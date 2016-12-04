@@ -9,13 +9,24 @@
 import UIKit
 import Tally
 
-extension String: LosslessTextConvertible {}
+extension String: LosslessConvertible {
+    public var losslessRepresentation: CoreDataTallyStoreLosslessRepresentation {
+        return .string(self)
+    }
+    
+    public init?(_ representation: CoreDataTallyStoreLosslessRepresentation) {
+        if case let .string(stringValue) = representation {
+            self = stringValue
+        }
+        else { return nil }
+    }
+}
 
 class PredictiveTextField: UITextField {
     
     let seperatorCharacters = CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters)
     
-    var store: CoreDataTallyStore<String>
+    let store: CoreDataTallyStore<String>
     var model: Tally<String>
     
     private var contextualInputAccessoryView: InputAccessoryView?
@@ -30,9 +41,14 @@ class PredictiveTextField: UITextField {
     
     required init?(coder aDecoder: NSCoder) {
         
-        // set up store
-        guard let archivedStore = Bundle.main.url(forResource: "Dorian-Gray", withExtension: "sqlite") else { return nil }
-        store = CoreDataTallyStore<String>(named: "PredictiveTextModelStore", fillFrom: archivedStore)
+        do {
+            let archive = try CoreDataStoreInformation(sqliteStoreNamed: "Trained", in: .mainBundle)
+            store = try CoreDataTallyStore<String>(named: "PredictiveModel", fillFrom: archive)
+        }
+        catch let error {
+            print(error)
+            return nil
+        }
         
         // set up model
         model = Tally(representing: TallySequenceType.continuousSequence, ngram: .bigram)
@@ -52,8 +68,14 @@ class PredictiveTextField: UITextField {
     }
     
     func learn(example: String) {
+        
         let sequence = example.trimmingCharacters(in: seperatorCharacters).components(separatedBy: seperatorCharacters)
-        model.observe(sequence: sequence)
+        
+        model.observe(sequence: sequence) {
+            self.store.save(completed: {
+                self.updateSuggestions()
+            })
+        }
     }
     
     func updateSuggestions() {

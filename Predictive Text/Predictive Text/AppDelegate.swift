@@ -8,38 +8,70 @@
 
 import UIKit
 import Tally
+import CoreData
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
     
-    func loadData() {
+    func loadData() throws {
         
-        let store = CoreDataTallyStore<String>(named: "Dorian-Gray")
+        // create an in-memory store for training (we're going to archive, so don't worry about persistance)
+        let memoryStore = try CoreDataStoreInformation(memoryStoreNamed: "tempTrainingStore", in: .defaultDirectory)
+        
+        // create core data tally store with memoty backing
+        let store = try CoreDataTallyStore<String>(store: memoryStore)
+        
+        // create the model, and assign the store
         var model = Tally<String>(representing: .continuousSequence, ngram: .bigram)
         model.store = AnyTallyStore(store)
         
-        let lines = array(from: "The-Picture-of-Dorian-Gray")
+        // read lines from training data
+        let lines = array(from: "training-data-short")
         let seperators = CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters)
         
         print("loading....", lines.count)
         let total = Double(lines.count)
-        var count = 1.0
+        var count = 0.0
+        
         for line in lines {
             count += 1
-            let normalized = normalize(text: line)
+            
+            let percent = Int(100*(count/total))
+            
+            let normalized = self.normalize(text: line)
             if normalized != "" {
-                let percent = Int(100*(count/total))
-                
                 let words = normalized.components(separatedBy: seperators).filter({ word in return !word.isEmpty })
                 print(percent, words)
+                
+                // observe data
                 model.observe(sequence: words)
             }
         }
-        
-        //store.save()
-        print("...saved")
+
+        // save is performed on same background queue that observation occurs on, athough observations are likely
+        // to see be in progess when the save request is sent, it's added to the queue FIFO and so will only be 
+        // started once all prior observations are completed.
+        store.save(completed: {
+            do {
+                let dist = model.distributions()
+                dump(dist)
+                
+                let trainingArchive = try CoreDataStoreInformation(sqliteStoreNamed: "Trained", in: .defaultDirectory)
+                try trainingArchive.destroyExistingPersistantStoreAndFiles()
+                try store.archive(as: trainingArchive)
+            }
+            catch {
+                print("Archive failed:", error)
+            }
+        })
+    }
+    
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
+        // Override point for customization after application launch.
+        //try! loadData()
+        return true
     }
     
     func array(from fileName: String) -> [String] {
@@ -52,12 +84,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func normalize(text: String) -> String {
         return text.lowercased().trimmingCharacters(in: CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters))
-    }
-
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
-        //loadData()
-        return true
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
