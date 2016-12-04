@@ -9,28 +9,19 @@
 import UIKit
 import Tally
 
-extension String: LosslessConvertible {
-    public var losslessRepresentation: CoreDataTallyStoreLosslessRepresentation {
-        return .string(self)
-    }
-    
-    public init?(_ representation: CoreDataTallyStoreLosslessRepresentation) {
-        if case let .string(stringValue) = representation {
-            self = stringValue
-        }
-        else { return nil }
-    }
-}
-
 class PredictiveTextField: UITextField {
     
     let seperatorCharacters = CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters)
     
-    let store: CoreDataTallyStore<String>
+    /// A Tally model of Strings.
     var model: Tally<String>
+    
+    /// A Tally store backed by Core Data so that updates to the model persist between app sessions.
+    let store: CoreDataTallyStore<String>
     
     private var contextualInputAccessoryView: InputAccessoryView?
     
+    /// An array of words based on the current input of the textfield.
     var words: [String] {
         if let text = text?.trimmingCharacters(in: seperatorCharacters), text != "" {
             let sequence = text.components(separatedBy: seperatorCharacters)
@@ -41,6 +32,11 @@ class PredictiveTextField: UITextField {
     
     required init?(coder aDecoder: NSCoder) {
         
+        // Attempt to grab a sqlite database from the app bundle and use it to populate the tally
+        // store the first time the app runs.
+        // In this case Trained.sqlite has been populated from the first chapter of the book 
+        // 'The Picture of Dorian Gray'. See training-data.txt for the actual text that was
+        // used.
         do {
             let archive = try CoreDataStoreInformation(sqliteStoreNamed: "Trained", in: .mainBundle)
             store = try CoreDataTallyStore<String>(named: "PredictiveModel", fillFrom: archive)
@@ -67,11 +63,10 @@ class PredictiveTextField: UITextField {
         contextualInputAccessoryView?.updateSuggestions()
     }
     
-    func learn(example: String) {
-        
-        let sequence = example.trimmingCharacters(in: seperatorCharacters).components(separatedBy: seperatorCharacters)
-        
-        model.observe(sequence: sequence) {
+    // learn a new example sentence
+    func learn(sentence words: [String]) {
+                
+        model.observe(sequence: words) {
             self.store.save(completed: {
                 self.updateSuggestions()
             })
@@ -80,5 +75,21 @@ class PredictiveTextField: UITextField {
     
     func updateSuggestions() {
         contextualInputAccessoryView?.updateSuggestions()
+    }
+}
+
+// For Strings to be used with a CoreDataTallyStore we need to have the String type implement 
+// the `LosslessConvertible` protocol. This simply tells CoreDataTallyStore how a String
+// should be represented within a Core Data store (which of course, is as a 'String').
+extension String: LosslessConvertible {
+    public var losslessRepresentation: CoreDataTallyStoreLosslessRepresentation {
+        return .string(self)
+    }
+    
+    public init?(_ representation: CoreDataTallyStoreLosslessRepresentation) {
+        if case let .string(stringValue) = representation {
+            self = stringValue
+        }
+        else { return nil }
     }
 }

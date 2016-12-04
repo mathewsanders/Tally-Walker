@@ -9,9 +9,12 @@
 import UIKit
 
 class ViewController: UITableViewController, UITextFieldDelegate {
-
+    
+    // A subclass of UITextField that manages a Tally model of words and sets up its inputAccessoryView 
+    // to display possible next words based on the model.
     @IBOutlet weak var predictiveTextField: PredictiveTextField!
     
+    // The example sentences that you've entered during this run of the app
     var examples: [String] = []
     
     override func viewDidLoad() {
@@ -21,15 +24,18 @@ class ViewController: UITableViewController, UITextFieldDelegate {
         predictiveTextField.becomeFirstResponder()
     }
     
+    // A textfield's return button has been hit
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         
-        if textField == predictiveTextField, let example = textField.text {
-            examples.insert(example, at: 0)
+        if textField == predictiveTextField, let example = textField.text, example != "" {
             
-            predictiveTextField.learn(example: example)
+            // have the text field learn this new example and clear the textfield for
+            // new text to be entered
+            predictiveTextField.learn(sentence: predictiveTextField.words)
             predictiveTextField.text = nil
-            predictiveTextField.updateSuggestions()
             
+            // add this text into examples and reload the table
+            examples.insert(example, at: 0)
             tableView.reloadData()
             
         }
@@ -37,6 +43,7 @@ class ViewController: UITableViewController, UITextFieldDelegate {
         return true
     }
     
+    // Display the example sentences entered
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return examples.count
     }

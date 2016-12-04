@@ -6,19 +6,21 @@
 //  Copyright © 2016 Mathew Sanders. All rights reserved.
 //
 
-import Foundation
 import UIKit
 import AVFoundation
 import Tally
 
 extension PredictiveTextField {
     
-    class InputAccessoryView: UIView {
+    /// An view used by a PredictiveTextField as it's input accessory view.
+    ///
+    /// When the text field value changes, this view looks uses the last word
+    /// entered in the text field, and displays up to three words that are 
+    /// likely to be entered next based on an underlying Tally model.
+    final class InputAccessoryView: UIView {
         
         let whitespaces = CharacterSet.whitespaces
         let suggestionsStack = UIStackView()
-
-        var suggestions: [String] = []
         
         unowned let target: PredictiveTextField
         
@@ -43,6 +45,10 @@ extension PredictiveTextField {
             suggestionsStack.bottomAnchor.constraint(equalTo: self.bottomAnchor, constant: 0).isActive = true
         }
         
+        deinit {
+            self.target.removeTarget(self, action: nil, for: UIControlEvents.allEditingEvents)
+        }
+        
         // text updated
         func valueChanged(textfield: UITextField) {
             updateSuggestions()
@@ -51,18 +57,31 @@ extension PredictiveTextField {
         // update the suggestions shown in the accessory view
         func updateSuggestions() {
             
+            // get the last word currently in the text field
             let lastWord = target.words.last ?? ""
-            let nextElements = target.model.elementProbabilities(after: lastWord).filter(onlyItemNodes).sorted(by: orderProbabilities)
             
-            let allSuggestions = nextElements.isEmpty ? target.model.startingElements().sorted(by: orderProbabilities) : nextElements
+            // Get the next words based on the last word entered
+            // the model is build around bigrams, so it's not possible to use anything
+            // but a single word to determine what the next word might be.
+            // Using a trigram would allow to look for next words based on the last two words
+            // which would likely improve the contextual relevence of the suggestions, but would
+            // also require a much larger set of training data.
+            let nextWords = target.model.elementProbabilities(after: lastWord).filter(onlyItemNodes)
             
-            suggestions = allSuggestions.prefix(3).flatMap({ $0.element.item })
+            // If next words is empty (because the last word in the text field isn't yet part of the Tally model)
+            // then fall back to the most likely starting words based on the model.
+            let allSuggestions = nextWords.isEmpty ? target.model.startingElements().sorted(by: orderProbabilities) : nextWords.sorted(by: orderProbabilities)
             
+            // Trim suggestions down to just the first three.
+            let suggestions = allSuggestions.prefix(3).flatMap({ $0.element.item })
+            
+            // Remove any existing suggestions...
             suggestionsStack.arrangedSubviews.forEach({ subview in
                 suggestionsStack.removeArrangedSubview(subview)
                 subview.removeFromSuperview()
             })
             
+            // ...and re-populate with the new suggestions.
             suggestions.forEach({ suggestion in
                 let button = SuggestionButton(title: suggestion, target: target)
                 suggestionsStack.addArrangedSubview(button)
@@ -85,6 +104,7 @@ extension PredictiveTextField {
     
     // MARK: Inner class
     
+    /// A simple subclass to use as a button in the input accessory view.
     class SuggestionButton: UIButton {
         
         let title: String!
