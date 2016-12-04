@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		AF06993B1DE8B83800E5C1AB /* Trained.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = AF06993A1DE8B83800E5C1AB /* Trained.sqlite */; };
-		AF1797951DD7A7D600D45737 /* Tally.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF1797921DD7A7CA00D45737 /* Tally.framework */; };
 		AF1797991DD7A87600D45737 /* PredictiveTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF1797961DD7A87600D45737 /* PredictiveTextField.swift */; };
 		AF17979A1DD7A87600D45737 /* PredictiveTextField+Classes.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF1797971DD7A87600D45737 /* PredictiveTextField+Classes.swift */; };
 		AF17979B1DD7A87600D45737 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF1797981DD7A87600D45737 /* ViewController.swift */; };
@@ -16,20 +15,21 @@
 		AF80BC071DD7A6160016C182 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AF80BC051DD7A6160016C182 /* Main.storyboard */; };
 		AF80BC091DD7A6160016C182 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AF80BC081DD7A6160016C182 /* Assets.xcassets */; };
 		AF80BC0C1DD7A6160016C182 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AF80BC0A1DD7A6160016C182 /* LaunchScreen.storyboard */; };
+		AFCE16A41DF4CC49002FD947 /* Tally.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AFCE16A11DF4CC32002FD947 /* Tally.framework */; };
 		AFE702F11DE0022B00E952E6 /* training-data.txt in Resources */ = {isa = PBXBuildFile; fileRef = AFE702F01DE0022B00E952E6 /* training-data.txt */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		AF1797911DD7A7CA00D45737 /* PBXContainerItemProxy */ = {
+		AFCE16A01DF4CC32002FD947 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = AF17978C1DD7A7CA00D45737 /* Tally.xcodeproj */;
+			containerPortal = AFCE169B1DF4CC32002FD947 /* Tally.xcodeproj */;
 			proxyType = 2;
 			remoteGlobalIDString = AFDBD8DB1DBEEFD7009B5FA8;
 			remoteInfo = Tally;
 		};
-		AF1797931DD7A7CA00D45737 /* PBXContainerItemProxy */ = {
+		AFCE16A21DF4CC32002FD947 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = AF17978C1DD7A7CA00D45737 /* Tally.xcodeproj */;
+			containerPortal = AFCE169B1DF4CC32002FD947 /* Tally.xcodeproj */;
 			proxyType = 2;
 			remoteGlobalIDString = AFDBD8E41DBEEFD7009B5FA8;
 			remoteInfo = TallyTests;
@@ -38,7 +38,6 @@
 
 /* Begin PBXFileReference section */
 		AF06993A1DE8B83800E5C1AB /* Trained.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = Trained.sqlite; sourceTree = "<group>"; };
-		AF17978C1DD7A7CA00D45737 /* Tally.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Tally.xcodeproj; path = ../Tally/Tally.xcodeproj; sourceTree = "<group>"; };
 		AF1797961DD7A87600D45737 /* PredictiveTextField.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PredictiveTextField.swift; sourceTree = "<group>"; };
 		AF1797971DD7A87600D45737 /* PredictiveTextField+Classes.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "PredictiveTextField+Classes.swift"; sourceTree = "<group>"; };
 		AF1797981DD7A87600D45737 /* ViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -48,6 +47,7 @@
 		AF80BC081DD7A6160016C182 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AF80BC0B1DD7A6160016C182 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		AF80BC0D1DD7A6160016C182 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AFCE169B1DF4CC32002FD947 /* Tally.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Tally.xcodeproj; path = ../../Tally/Tally.xcodeproj; sourceTree = "<group>"; };
 		AFE702F01DE0022B00E952E6 /* training-data.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "training-data.txt"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -56,28 +56,19 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AF1797951DD7A7D600D45737 /* Tally.framework in Frameworks */,
+				AFCE16A41DF4CC49002FD947 /* Tally.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		AF17978D1DD7A7CA00D45737 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				AF1797921DD7A7CA00D45737 /* Tally.framework */,
-				AF1797941DD7A7CA00D45737 /* TallyTests.xctest */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
 		AF80BBF51DD7A6160016C182 = {
 			isa = PBXGroup;
 			children = (
+				AFCE169B1DF4CC32002FD947 /* Tally.xcodeproj */,
 				AF80BC001DD7A6160016C182 /* Predictive Text */,
 				AF80BBFF1DD7A6160016C182 /* Products */,
-				AF17978C1DD7A7CA00D45737 /* Tally.xcodeproj */,
 			);
 			sourceTree = "<group>";
 		};
@@ -104,6 +95,15 @@
 				AF80BC0D1DD7A6160016C182 /* Info.plist */,
 			);
 			path = "Predictive Text";
+			sourceTree = "<group>";
+		};
+		AFCE169C1DF4CC32002FD947 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AFCE16A11DF4CC32002FD947 /* Tally.framework */,
+				AFCE16A31DF4CC32002FD947 /* TallyTests.xctest */,
+			);
+			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -156,8 +156,8 @@
 			projectDirPath = "";
 			projectReferences = (
 				{
-					ProductGroup = AF17978D1DD7A7CA00D45737 /* Products */;
-					ProjectRef = AF17978C1DD7A7CA00D45737 /* Tally.xcodeproj */;
+					ProductGroup = AFCE169C1DF4CC32002FD947 /* Products */;
+					ProjectRef = AFCE169B1DF4CC32002FD947 /* Tally.xcodeproj */;
 				},
 			);
 			projectRoot = "";
@@ -168,18 +168,18 @@
 /* End PBXProject section */
 
 /* Begin PBXReferenceProxy section */
-		AF1797921DD7A7CA00D45737 /* Tally.framework */ = {
+		AFCE16A11DF4CC32002FD947 /* Tally.framework */ = {
 			isa = PBXReferenceProxy;
 			fileType = wrapper.framework;
 			path = Tally.framework;
-			remoteRef = AF1797911DD7A7CA00D45737 /* PBXContainerItemProxy */;
+			remoteRef = AFCE16A01DF4CC32002FD947 /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
-		AF1797941DD7A7CA00D45737 /* TallyTests.xctest */ = {
+		AFCE16A31DF4CC32002FD947 /* TallyTests.xctest */ = {
 			isa = PBXReferenceProxy;
 			fileType = wrapper.cfbundle;
 			path = TallyTests.xctest;
-			remoteRef = AF1797931DD7A7CA00D45737 /* PBXContainerItemProxy */;
+			remoteRef = AFCE16A21DF4CC32002FD947 /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 /* End PBXReferenceProxy section */
