@@ -1,13 +1,27 @@
+// TallyTests.swift
 //
-//  TallyTests.swift
-//  TallyTests
+// Copyright (c) 2016 Mathew Sanders
 //
-//  Created by Mathew Sanders on 10/24/16.
-//  Copyright © 2016 Mat. All rights reserved.
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
 //
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 
 import XCTest
-@testable import Tally
+import Tally
 
 class TallyTests: XCTestCase {
     
@@ -54,6 +68,7 @@ class TallyTests: XCTestCase {
             
             // fill for continuous sequence should always return the requested size
             let sequence = continuousWalker.fill(request: fillSize)
+            //print(sequence)
             XCTAssertTrue(sequence.count == fillSize, "Fill should have generated \(fillSize) items")
             
             sunnyDays.append(numberOfDays(in: sequence, matching: "☀️"))
@@ -91,7 +106,7 @@ class TallyTests: XCTestCase {
             model.endSequence()
         }
         
-        XCTAssertTrue(model.startingItems().count == startingWords.keys.count, "Problem with starting words in model")
+        XCTAssertTrue(model.startingElements().count == startingWords.keys.count, "Problem with starting words in model")
         XCTAssertTrue(model.distributions().count == allWords.keys.count, "Problem with number of words in model")
         
     }
