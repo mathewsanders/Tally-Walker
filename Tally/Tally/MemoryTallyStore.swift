@@ -29,17 +29,17 @@ public class MemoryTallyStore<Item>: TallyStoreType where Item: Hashable {
     private var root: MemoryNode<Item>
     
     public init() {
-        self.root = MemoryNode(withElement: .root)
+        self.root = MemoryNode()
     }
     
     // MARK: TallyStoreType
     
     public func incrementCount(for ngram: [NgramElement<Item>]) {
-        root.incrementCount(for: [root.element] + ngram)
+        root.incrementCount(for: ngram)
     }
     
     public func nextElement(following elements: [NgramElement<Item>]) -> [(probability: Double, element: NgramElement<Item>)] {
-        return root.nextElement(following: [root.element] + elements)
+        return root.nextElement(following: elements)
     }
     
     public func distributions(excluding excludedElements: [NgramElement<Item>] = []) -> [(probability: Double, element: NgramElement<Item>)] {
@@ -53,11 +53,15 @@ fileprivate final class MemoryNode<Item>: TallyStoreTreeNode where Item: Hashabl
     
     typealias Children = [NgramElement<Item>: MemoryNode<Item>]
     
-    let element: NgramElement<Item>
+    let element: NgramElement<Item>!
     var count: Double = 0
     var children: Children = [:]
     
-    required init(withElement element: NgramElement<Item> = .root) {
+    init() {
+        self.element = nil // root node
+    }
+    
+    required init(withElement element: NgramElement<Item>) {
         self.element = element
     }
     
@@ -71,7 +75,7 @@ fileprivate final class MemoryNode<Item>: TallyStoreTreeNode where Item: Hashabl
     
     func makeChildNode(with element: NgramElement<Item>) -> MemoryNode<Item> {
         let child = MemoryNode<Item>(withElement: element)
-        children[child.element] = child
+        children[element] = child
         return child
     }
 }

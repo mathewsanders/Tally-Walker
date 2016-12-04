@@ -25,7 +25,7 @@
     </entity>
     <entity name="CoreDataNode" representedClassName="CoreDataNode" syncable="YES" codeGenerationType="class">
         <attribute name="count" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
-        <attribute name="elementTypeInt16Value" attributeType="Integer 16" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="nodeTypeInt16Value" attributeType="Integer 16" usesScalarValueType="YES" syncable="YES"/>
         <relationship name="children" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="CoreDataNode" inverseName="parent" inverseEntity="CoreDataNode" syncable="YES"/>
         <relationship name="literalItem" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CoreDataLiteralItem" inverseName="nodes" inverseEntity="CoreDataLiteralItem" syncable="YES"/>
         <relationship name="parent" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CoreDataNode" inverseName="children" inverseEntity="CoreDataNode" syncable="YES"/>

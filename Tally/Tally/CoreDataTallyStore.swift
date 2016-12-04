@@ -126,13 +126,13 @@ public class CoreDataTallyStore<Item>: TallyStoreType where Item: Hashable, Item
     
     public func incrementCount(for ngram: [NgramElement<Item>], completed closure: (() -> Void)? = nil) {
         stack.backgroundContext.perform {
-            self.backgroundRoot.incrementCount(for: [NgramElement<Item>.root] + ngram)
+            self.backgroundRoot.incrementCount(for: ngram)
             closure?() // TODO: Consider calling on main queue
         }
     }
     
     public func nextElement(following elements: [NgramElement<Item>]) -> [(probability: Double, element: NgramElement<Item>)] {
-        return mainRoot.nextElement(following: [NgramElement<Item>.root] + elements)
+        return mainRoot.nextElement(following: elements)
     }
     
     public func distributions(excluding excludedElements: [NgramElement<Item>]) -> [(probability: Double, element: NgramElement<Item>)] {
@@ -158,7 +158,7 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreTreeNode where Item
     }
     
     convenience init(in context: NSManagedObjectContext) {
-        let root = CoreDataNode(element: NgramElement<Item>.root, in: context)
+        let root = CoreDataNode(in: context)
         self.init(node: root, in: context)
     }
     
@@ -191,7 +191,7 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreTreeNode where Item
     
     // nodeType is cheaper check than unrwapping node, so do this first
     private func element(is element: NgramElement<Item>) -> Bool {
-        return element.elementType == self._node.elementType  && element == self.element
+        return element.nodeType == self._node.nodeType  && element == self.element
     }
     
     func makeChildNode(with element: NgramElement<Item>) -> CoreDataNodeWrapper<Item> {
@@ -201,15 +201,14 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreTreeNode where Item
     }
     
     // profiling is showing that this is a bottleneck, especially the initializer
-    var element: NgramElement<Item> {
+    var element: NgramElement<Item>! {
         
-        switch self._node.elementType {
-        case .root: return NgramElement<Item>.root
+        switch self._node.nodeType {
+        case .root: return nil
         case .boundaryUnseenLeadingItems: return NgramElement<Item>.unseenLeadingItems
         case .boundaryUnseenTrailingItems: return NgramElement<Item>.unseenTrailingItems
         case .boundarySequenceStart: return NgramElement<Item>.sequenceStart
         case .boundarySequenceEnd: return NgramElement<Item>.sequenceEnd
-            
         case .literalItem:
             // grab the lossless representation of the literal item, this could involve expensive transformable property
             let losslessRepresentation = self._node.literalItem?.losslessRepresentation
@@ -225,7 +224,7 @@ fileprivate final class CoreDataNodeWrapper<Item>: TallyStoreTreeNode where Item
 
 // TODO: Review if this is a bottleneck
 // http://stackoverflow.com/a/32421787/1060154
-fileprivate enum CoreDataElementType: Int16 {
+fileprivate enum CoreDataNodeType: Int16 {
     case root = 0
     case boundaryUnseenTrailingItems
     case boundaryUnseenLeadingItems
@@ -236,21 +235,26 @@ fileprivate enum CoreDataElementType: Int16 {
 
 fileprivate extension CoreDataNode {
 
+    convenience init(in context: NSManagedObjectContext) {
+        self.init(context: context)
+        self.nodeType = .root
+    }
+    
     convenience init<Item: LosslessConvertible>(element: NgramElement<Item>, in context: NSManagedObjectContext) {
         self.init(context: context)
         
-        self.elementType = element.elementType
+        self.nodeType = element.nodeType
         
         if let losslessRepresentation = element.item?.losslessRepresentation {
             self.literalItem = CoreDataLiteralItem(with: losslessRepresentation, in: context)
         }
     }
     
-    var elementType: CoreDataElementType {
-        set { elementTypeInt16Value = newValue.rawValue }
+    var nodeType: CoreDataNodeType {
+        set { nodeTypeInt16Value = newValue.rawValue }
         get {
-            guard let type = CoreDataElementType(rawValue: elementTypeInt16Value)
-                else { fatalError("CoreDataNode internal inconsistancy \(elementTypeInt16Value)") }
+            guard let type = CoreDataNodeType(rawValue: nodeTypeInt16Value)
+                else { fatalError("CoreDataNode internal inconsistancy \(nodeTypeInt16Value)") }
             
             return type
         }
@@ -331,14 +335,13 @@ fileprivate extension CoreDataLiteralItem {
 
 fileprivate extension NgramElement where Item: LosslessConvertible {
     
-    var elementType: CoreDataElementType {
+    var nodeType: CoreDataNodeType {
         switch self {
-        case .item: return CoreDataElementType.literalItem
-        case .root: return CoreDataElementType.root
-        case .sequenceEnd: return CoreDataElementType.boundarySequenceEnd
-        case .sequenceStart: return CoreDataElementType.boundarySequenceStart
-        case .unseenLeadingItems: return CoreDataElementType.boundaryUnseenLeadingItems
-        case .unseenTrailingItems: return CoreDataElementType.boundaryUnseenTrailingItems
+        case .item: return CoreDataNodeType.literalItem
+        case .sequenceEnd: return CoreDataNodeType.boundarySequenceEnd
+        case .sequenceStart: return CoreDataNodeType.boundarySequenceStart
+        case .unseenLeadingItems: return CoreDataNodeType.boundaryUnseenLeadingItems
+        case .unseenTrailingItems: return CoreDataNodeType.boundaryUnseenTrailingItems
         }
     }
 }

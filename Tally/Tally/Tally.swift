@@ -336,9 +336,6 @@ public enum NgramElement<Item: Hashable>: Hashable {
     /// Represents the end of a discrete sequence.
     case sequenceEnd
     
-    /// The root node
-    case root // TODO: Can I remove this, and instead represent root nodes by using nil
-    
     /// The item this node represents, or nil if the node represents a sequence boundary.
     public var item: Item? {
         switch self {
@@ -347,23 +344,22 @@ public enum NgramElement<Item: Hashable>: Hashable {
         }
     }
     
-    internal var isBoundaryOrRoot: Bool {
+    internal var isBoundary: Bool {
         switch self {
         case .item: return false
-        case .unseenLeadingItems, .unseenTrailingItems, .sequenceEnd, .sequenceStart, .root: return true
+        case .unseenLeadingItems, .unseenTrailingItems, .sequenceEnd, .sequenceStart: return true
         }
     }
     
     internal var isObservableBoundary: Bool {
         switch self {
-        case .item, .sequenceEnd, .sequenceStart, .root: return false
+        case .item, .sequenceEnd, .sequenceStart: return false
         case .unseenLeadingItems, .unseenTrailingItems: return true
         }
     }
     
     public var hashValue: Int {
         switch self {
-        case .root: return 0
         case .sequenceStart: return 1
         case .sequenceEnd: return 2
         case .unseenLeadingItems: return 3
@@ -382,7 +378,6 @@ public enum NgramElement<Item: Hashable>: Hashable {
     ///   - rhs: Another value to compare.
     public static func ==(lhs: NgramElement<Item>, rhs: NgramElement<Item>) -> Bool {
         switch (lhs, rhs) {
-        case (.root, .root): return true
         case (.sequenceStart, .sequenceStart): return true
         case (.sequenceEnd, .sequenceEnd): return true
         case(.unseenLeadingItems, .unseenLeadingItems): return true
@@ -405,7 +400,7 @@ extension Array where Iterator.Element: Hashable {
     func headAndTail() -> (Element, [Element]) {
         
         if self.isEmpty {
-            NSException(name: NSExceptionName.invalidArgumentException, reason: "Array can not be empty", userInfo: nil).raise()
+            NSException(name: NSExceptionName.invalidArgumentException, reason: "Array must have at least one element to get head and tail", userInfo: nil).raise()
         }
         
         var tail = self

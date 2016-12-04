@@ -106,7 +106,10 @@ public protocol TallyStoreTreeNode {
     associatedtype Item: Hashable
     
     /// An element of an n-gram.
-    var element: NgramElement<Item> { get }
+    /// When creating a node that represents the root node of the tree, this property can be set
+    /// to `nil`. However, you must make sure that in your implementation you never expect the
+    /// root node to have a non-nil element.
+    var element: NgramElement<Item>! { get }
     
     /// The number of times the element occurs within this position in an ngram.
     /// When initalizing a new node, you should set the initial value to be 0.0.
@@ -142,30 +145,20 @@ extension TallyStoreTreeNode  {
     
     mutating func incrementCount(for ngram: [NgramElement<Item>]) {
         
-        let (_, tailElements) = ngram.headAndTail()
-        
-        if let element = tailElements.first {
-            var child = findChildNode(with: element) ?? makeChildNode(with: element)
-            child.incrementCount(for: tailElements)
+        if ngram.isEmpty {
+            count += 1
         }
         else {
-            count += 1
+            let (head, tail) = ngram.headAndTail()
+            
+            var child = findChildNode(with: head) ?? makeChildNode(with: head)
+            child.incrementCount(for: tail)
         }
     }
     
     func nextElement(following elements: [NgramElement<Item>]) -> ElementProbabilities {
         
-        let (_, tailElements) = elements.headAndTail()
-        
-        if let element = tailElements.first {
-            
-            if let child = findChildNode(with: element) {
-                return child.nextElement(following: tailElements)
-            }
-            else { return [] }
-        }
-            
-        else { // tail is empty
+        if elements.isEmpty {
             
             let total: Double = childNodes.reduce(0.0, { partial, child in
                 return partial + child.count
@@ -176,19 +169,29 @@ extension TallyStoreTreeNode  {
                 return (probability: prob, element: child.element)
             })
         }
+        else {
+            let (head, tail) = elements.headAndTail()
+            
+            if let child = findChildNode(with: head) {
+                return child.nextElement(following: tail)
+            }
+            else {
+                return []
+            }
+        }
     }
     
     func distributions(excluding excludedElements: [NgramElement<Item>] = []) -> ElementProbabilities {
         
         let total: Double = childNodes.reduce(0.0, { partial, child in
-            if child.element.isBoundaryOrRoot { return partial }
+            if child.element.isBoundary { return partial }
             if excludedElements.contains(child.element) { return partial }
             return partial + child.count
         })
         
         return childNodes.flatMap { child in
             
-            if child.element.isBoundaryOrRoot { return nil }
+            if child.element.isBoundary { return nil }
             if excludedElements.contains(child.element) { return nil }
             
             let prob = child.count / total
