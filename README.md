@@ -1,3 +1,5 @@
+![Tally & Walker logo](assets/tally-walker-logo.png)
+
 # Tally & Walker
 
 Tally & Walker is a lightweight Swift library for building probability models of n-grams.
@@ -17,19 +19,19 @@ weatherModel.observe(sequence: ["🌧","🌧","🌧","🌧", "☀️","☀️","
 // Check the overall distributions of items observed
 weatherModel.distributions()
 // Returns:
-// [(probability: 0.5, item: "🌧"),
-//  (probability: 0.5, item: "☀️")]
+// [(probability: 0.5, element: "🌧"),
+//  (probability: 0.5, element: "☀️")]
 
 // Check to see what items are expected to follow a specific item  
 weatherModel.itemProbabilities(after: "☀️")
 // Returns:
-// [(probability: 0.75, item: "☀️"),
-//  (probability: 0.25, item: "🌧")]
+// [(probability: 0.75, element: "☀️"),
+//  (probability: 0.25, element: "🌧")]
 
 weatherModel.itemProbabilities(after: "🌧")
 // Returns:
-// [(probability: 0.75, item: "🌧"),
-//  (probability: 0.25, item: .unseenItems)]
+// [(probability: 0.75, element: "🌧"),
+//  (probability: 0.25, element: .unseenItems)]
 //
 // `.unseenItems` is a marker to say that the sequence continues but, based
 // on the sequences we have observed, we don't know what items come next
@@ -126,10 +128,10 @@ var genes = Tally<Character>(ngram: .trigram)
 /* train the model */
 
 // find probabilities of items that follow the item 'C'
-genes.itemProbabilities(after: "C")
+genes.elementProbabilities(after: "C")
 
 // Find probabilities of items that follow the sequence 'C-T'  
-genes.itemProbabilities(after: ["C", "T"])
+genes.elementProbabilities(following: ["C", "T"])
 
 // Because this model uses a 3-gram, it's not possible to find probabilities of
 // items that follow a sequence longer than two items, instead of returning no
@@ -219,119 +221,66 @@ let tenItems = walker.fill(request: 10)
 
 ## Saving Models
 
-The loading of Tally models in and out of a store are handled by an object that creates a bridge between a type of `Tally` item and a compatible 'store'.
+By default, models are in-memory only, and will not persist.
 
-You'll need to create an implementation of the store that handles both the specific type of object represented by your model (e.g. a String, Int, or a custom object) and how the store persists data (e.g. writing to a file, saving to a database), but implementing some simple protocols gives you a jump-start to writing your store.
+Setting the `store` property of a Tally model with a `TallyStoreType` that works with the same type you can configure the model to use a different store, including stores that persist the model.
 
-First, here's an example of loading a `Tally<String>` model into a `StringPlistStore` store, which like the name suggests, persists information about a model of `String` items by writing to a plist file.
+The easiest way to create a TallyStoreType is to create a store that's based on a tree structure, and to implement the `TallyStoreTreeNode` protocol for the nodes of the tree. See the implementation of [MemoryTallyStore](Tally/Tally/MemoryTallyStore.swift) for an example of this approach.
 
-### Saving a model to a plist
+### CoreDataTallyStore
 
-```Swift
-// Create a bridge between an `Item` and an implementation of `TallyFlatStoreType`
-let bridge = TallyBridge<String, StringPlistStore>()
-
-// load the `Tally` model into a `StringStore`
-let store = bridge.load(model: model)
-
-// save the store
-store.save(to: "data.plist")
-```
-
-### Loading a model from a plist
+Tally & Walker ships with `CoreDataTallyStore` which can be used to persist the Tally model through an sqlite store.
 
 ```Swift
 
-// load the store
-let store = StringPlistStore(from: "data.plist")
+// Create the Tally store.
+// With this convenience initializer a sqlite store called
+// 'WordStore.sqlite' will be created in the application
+// default directory.
+let wordStore = CoreDataTallyStore<String>(named: "WordStore")
 
-// Create a bridge between an `Item` and an implementation of `TallyFlatStoreType`
-let bridge = TallyBridge<String, StringPlistStore>()
+// Create a Tally model for Strings, and link model to the store
+var model = Tally<String>()
+model.store = AnyTallyStore(wordStore)
 
-// load the model
-var model = bridge.load(store: store)
-
-// model is ready to be used...
-```
-
-### Creating a store
-
-A `Tally` model represents ngrams internally as a tree of nodes where each node may be a literal item (e.g. the text "hello"), or represent the start or end of a sequence.
-
-`TallyFlatStoreType` defines the implementation of a store where information about nodes are accessed through calls to get or set information about a node through a unique identifier.
-
-As long as your store implements these requirements as defined, and provides a sensible way to save or retrieve its internal state then the TallyBridge provides the mechanics of transferring information between model and store, and vice versa.
-
-```Swift
-public protocol TallyFlatStoreType {
-
-    associatedtype StoreItem: Hashable
-
-    /// A unique reference representing a node.
-    typealias Id = String
-
-    /// A tuple that represents a node in a tree representing a structure of ngrams.
-    /// - `node` is a wrapper for the item in the ngram which may represent a literal item, or also a marker
-    /// to represent the start, or end of a sequence. It is up to the implementation to ensure that these
-    /// markers are suitably accounted for in the store.
-    /// - `count` is an integer representing the number of occurrences of the node.
-    /// - `childIds` an array of ids of children of this node.
-    typealias StoreValue = (node: Node<StoreItem>, count: Int, childIds: [Id])
-
-    /// Initialize a store with appropriate settings, and the ids of root node children.
-    /// It's expected that the store is filled with a subsequent call to `add(id: Id, value: StoreValue)`
-    /// for each item in the model.
-    init(sequenceType: TallySequenceType, ngramType: NgramType, rootChildIds: [Id])
-
-    /// Add information about a node to the store.
-    ///
-    /// - parameter id: the Id of the node, used as an index.
-    /// - parameter value: the node, number of occurrences, and childIds of the node.
-    mutating func add(id: Id, value: StoreValue)
-
-    /// Get the node, number of occurrences, and Ids of child nodes for the node with the id.
-    /// Returns nil if no node found in the store with that id.
-    /// - parameter id: the Id of the node to retrieve.
-    func get(id: Id) -> StoreValue?
-
-    /// You should not need to call any of the following properties yourself. They are expected to be used
-    /// by `TallyBridge` as part of the process of loading a model from a store.
-
-    /// The type of sequence of the model that this store holds.
-    var sequenceType: TallySequenceType { get }
-
-    /// The size of the ngram of the model that this store holds.
-    var ngramType: NgramType { get }
-
-    /// Ids for children of the root node.
-    var rootChildIds: [Id] { get }
+// Observations on a Core Data backed store are performed on a background
+// thread, an optional closure an be used to trigger behavior once the
+// observation has completed
+model.observe(sequence: ["hello", "world"]) {
+  print("Observation finished!")
 }
+
+// Manually call `save()` at an appropriate time to propagate changes
+// to the Core Data store.
+wordStore.save()
+
 ```
 
-If your model items can be safely transformed into a textual format without loss of information, extend your items to implement `NodeRepresentableWithTextType`.
-
-For most items this will be a trivial extension on your item type, for example for a model of type Tally<String>:
+Before using `CoreDataTallyStore`, you'll also need to extend the type so that it implements the `LosslessConvertible` protocol, which in turn describes how your type should be represented in a Core Data store.
 
 ```Swift
-extension String: NodeRepresentableWithTextType {
-    public init?(_ text: String) {
-        self = text
+
+extension String: LosslessConvertible {
+
+    // return the value that will be used by the Core Data store
+    public var losslessRepresentation: CoreDataTallyStoreLosslessRepresentation {
+        return .string(self)
     }
 
-    public var textValue: String {
-        return self.description
+    // initialize the type from the value in the Core Data store
+    public init?(_ representation: CoreDataTallyStoreLosslessRepresentation) {
+        if case let .string(stringValue) = representation {
+            self = stringValue
+        }
+        else { return nil }
     }
 }
+
 ```
 
-This gives your implementation of `TallyFlatStoreType` access to two convenience methods to translate between a node, and a textual representation of the node which is ready to be entered into a store.
+`LosslessConvertible` includes options for types to be converted to one of the following types: `String`, `Bool`, `Double`, `Int16`, and `NSDictionary`.
 
-Get a text representation of the node:
-`func textRepresentation(from node: Node<StoreItem>) -> String?`
-
-Get a node from the text representation:
-`func node(from textRepresentation: String) -> Node<StoreItem>?`
-
+Converting your type to a `NSDictionary` means that even complex types can be safely represented in the Core Data store, however use of one of the scalar type if preferred because this allows optimizations that both increases speed, and decreases the size of the generated store.
 
 ## Roadmap
 
@@ -342,8 +291,7 @@ Get a node from the text representation:
 - [x] List probability for next item in sequence
 - [ ] List probability for next sequence of items in sequence
 - [ ] List most frequent n-grams
-- [x] Export/import model (maybe json, plist)
-- [ ] Persist model (maybe NSCoding, Core Data)
+- [x] Persist model using Core Data
 - [ ] Add pseudocounts to smooth infrequent or unseen n-grams
 - [ ] Normalize items as they are observed while keeping original value and count
 - [ ] Tag observed sequences with metadata/category to provide context
@@ -355,8 +303,9 @@ Get a node from the text representation:
 
 ## Requirements
 
-- Xcode 8.0+
-- Swift 3.0+
+- Xcode 8.0
+- Swift 3.0
+- Target >= iOS 10.0
 
 ## Author
 
