@@ -23,17 +23,18 @@ weatherModel.distributions()
 //  (probability: 0.5, element: "☀️")]
 
 // Check to see what items are expected to follow a specific item  
-weatherModel.itemProbabilities(after: "☀️")
-// Returns:
-// [(probability: 0.75, element: "☀️"),
-//  (probability: 0.25, element: "🌧")]
-
-weatherModel.itemProbabilities(after: "🌧")
+weatherModel.elementProbabilities(after: "🌧")
 // Returns:
 // [(probability: 0.75, element: "🌧"),
-//  (probability: 0.25, element: .unseenItems)]
+//  (probability: 0.25, element: "☀️")]
+
+weatherModel.elementProbabilities(after: "☀️")
+// Returns:
+// [(probability: 0.75, element: "☀️"),
+//  (probability: 0.25, element: .unseenTrailingItems)]
 //
-// `.unseenItems` is a marker to say that the sequence continues but, based
+// `.unseenTrailingItems` is an element, which instead of representing an 
+// item, is a marker that indicates that the sequence continues but, based 
 // on the sequences we have observed, we don't know what items come next
 
 ````
@@ -137,7 +138,7 @@ genes.elementProbabilities(following: ["C", "T"])
 // items that follow a sequence longer than two items, instead of returning no
 // matches, the model will clamp the sequence to the maximum size that the
 // model allows, in this case returning items that follow the sequence 'G-A'
-genes.itemProbabilities(after: ["C", "T", "G", "A"])
+genes.elementProbabilities(following: ["C", "T", "G", "A"])
 
 ```
 
