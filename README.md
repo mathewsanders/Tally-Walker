@@ -1,4 +1,4 @@
-![Tally & Walker logo](assets/tally-walker-logo.png)
+<img src="assets/tally-walker-logo.png" alt="Tally & Walker logo" width="59">
 
 # Tally & Walker
 
