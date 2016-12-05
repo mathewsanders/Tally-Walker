@@ -64,7 +64,7 @@ extension PredictiveTextField {
             // the model is build around bigrams, so it's not possible to use anything
             // but a single word to determine what the next word might be.
             // Using a trigram would allow to look for next words based on the last two words
-            // which would likely improve the contextual relevence of the suggestions, but would
+            // which would likely improve the contextual relevance of the suggestions, but would
             // also require a much larger set of training data.
             let nextWords = target.model.elementProbabilities(after: lastWord).filter(onlyItemNodes)
             

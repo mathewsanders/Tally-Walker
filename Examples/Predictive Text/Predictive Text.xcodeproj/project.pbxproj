@@ -16,7 +16,7 @@
 		AF80BC091DD7A6160016C182 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AF80BC081DD7A6160016C182 /* Assets.xcassets */; };
 		AF80BC0C1DD7A6160016C182 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AF80BC0A1DD7A6160016C182 /* LaunchScreen.storyboard */; };
 		AFCE16A41DF4CC49002FD947 /* Tally.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AFCE16A11DF4CC32002FD947 /* Tally.framework */; };
-		AFE702F11DE0022B00E952E6 /* training-data.txt in Resources */ = {isa = PBXBuildFile; fileRef = AFE702F01DE0022B00E952E6 /* training-data.txt */; };
+		AFE702F11DE0022B00E952E6 /* The-Picture-of-Dorian-Gray--Chapter-1.txt in Resources */ = {isa = PBXBuildFile; fileRef = AFE702F01DE0022B00E952E6 /* The-Picture-of-Dorian-Gray--Chapter-1.txt */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -48,7 +48,7 @@
 		AF80BC0B1DD7A6160016C182 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		AF80BC0D1DD7A6160016C182 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AFCE169B1DF4CC32002FD947 /* Tally.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Tally.xcodeproj; path = ../../Tally/Tally.xcodeproj; sourceTree = "<group>"; };
-		AFE702F01DE0022B00E952E6 /* training-data.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "training-data.txt"; sourceTree = "<group>"; };
+		AFE702F01DE0022B00E952E6 /* The-Picture-of-Dorian-Gray--Chapter-1.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "The-Picture-of-Dorian-Gray--Chapter-1.txt"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -87,7 +87,7 @@
 				AF1797981DD7A87600D45737 /* ViewController.swift */,
 				AF1797961DD7A87600D45737 /* PredictiveTextField.swift */,
 				AF1797971DD7A87600D45737 /* PredictiveTextField+Classes.swift */,
-				AFE702F01DE0022B00E952E6 /* training-data.txt */,
+				AFE702F01DE0022B00E952E6 /* The-Picture-of-Dorian-Gray--Chapter-1.txt */,
 				AF06993A1DE8B83800E5C1AB /* Trained.sqlite */,
 				AF80BC051DD7A6160016C182 /* Main.storyboard */,
 				AF80BC081DD7A6160016C182 /* Assets.xcassets */,
@@ -189,7 +189,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AFE702F11DE0022B00E952E6 /* training-data.txt in Resources */,
+				AFE702F11DE0022B00E952E6 /* The-Picture-of-Dorian-Gray--Chapter-1.txt in Resources */,
 				AF80BC0C1DD7A6160016C182 /* LaunchScreen.storyboard in Resources */,
 				AF06993B1DE8B83800E5C1AB /* Trained.sqlite in Resources */,
 				AF80BC091DD7A6160016C182 /* Assets.xcassets in Resources */,

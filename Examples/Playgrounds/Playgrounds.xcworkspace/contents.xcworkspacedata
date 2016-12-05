@@ -2,9 +2,9 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "group:Weather.playground">
+      location = "group:source/Weather.playground">
    </FileRef>
    <FileRef
-      location = "group:../Tally.xcodeproj">
+      location = "group:../../Tally/Tally.xcodeproj">
    </FileRef>
 </Workspace>
