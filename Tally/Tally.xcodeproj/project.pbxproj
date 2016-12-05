@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4019ED8E1DDB67A800B4114A /* CoreDataTallyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4019ED8D1DDB67A800B4114A /* CoreDataTallyStore.swift */; };
+		4019ED921DDB87FF00B4114A /* TallyStoreModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 4019ED901DDB87FF00B4114A /* TallyStoreModel.xcdatamodeld */; };
+		401C98671DDA6958006AB605 /* TallyStoreType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 401C98661DDA6958006AB605 /* TallyStoreType.swift */; };
+		40A15FC11DDBA5CA00E2CED0 /* MemoryTallyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40A15FC01DDBA5CA00E2CED0 /* MemoryTallyStore.swift */; };
+		40FA5E991DDBBBC6009FC865 /* TallyTestsCoreDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40FA5E981DDBBBC6009FC865 /* TallyTestsCoreDataStore.swift */; };
+		AF0699351DE7FE2A00E5C1AB /* CoreData+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF0699341DE7FE2A00E5C1AB /* CoreData+Extensions.swift */; };
 		AFAB26E61DC01C4600176ACE /* new-yorker-captions.txt in Resources */ = {isa = PBXBuildFile; fileRef = AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */; };
 		AFDBD8E51DBEEFD7009B5FA8 /* Tally.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AFDBD8DB1DBEEFD7009B5FA8 /* Tally.framework */; };
 		AFDBD8EA1DBEEFD7009B5FA8 /* TallyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFDBD8E91DBEEFD7009B5FA8 /* TallyTests.swift */; };
@@ -26,6 +32,12 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		4019ED8D1DDB67A800B4114A /* CoreDataTallyStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CoreDataTallyStore.swift; sourceTree = "<group>"; };
+		4019ED911DDB87FF00B4114A /* TallyStoreModel.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = TallyStoreModel.xcdatamodel; sourceTree = "<group>"; };
+		401C98661DDA6958006AB605 /* TallyStoreType.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TallyStoreType.swift; sourceTree = "<group>"; };
+		40A15FC01DDBA5CA00E2CED0 /* MemoryTallyStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MemoryTallyStore.swift; sourceTree = "<group>"; };
+		40FA5E981DDBBBC6009FC865 /* TallyTestsCoreDataStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TallyTestsCoreDataStore.swift; sourceTree = "<group>"; };
+		AF0699341DE7FE2A00E5C1AB /* CoreData+Extensions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "CoreData+Extensions.swift"; sourceTree = "<group>"; };
 		AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "new-yorker-captions.txt"; sourceTree = "<group>"; };
 		AFDBD8DB1DBEEFD7009B5FA8 /* Tally.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Tally.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AFDBD8DE1DBEEFD7009B5FA8 /* Tally.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Tally.h; sourceTree = "<group>"; };
@@ -56,6 +68,25 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		4019EDA61DDB8FFB00B4114A /* CoreDataStore */ = {
+			isa = PBXGroup;
+			children = (
+				4019ED901DDB87FF00B4114A /* TallyStoreModel.xcdatamodeld */,
+				4019ED8D1DDB67A800B4114A /* CoreDataTallyStore.swift */,
+				AF0699341DE7FE2A00E5C1AB /* CoreData+Extensions.swift */,
+			);
+			name = CoreDataStore;
+			sourceTree = "<group>";
+		};
+		40A15FC31DDBA5FB00E2CED0 /* TallyStore */ = {
+			isa = PBXGroup;
+			children = (
+				401C98661DDA6958006AB605 /* TallyStoreType.swift */,
+				40A15FC01DDBA5CA00E2CED0 /* MemoryTallyStore.swift */,
+			);
+			name = TallyStore;
+			sourceTree = "<group>";
+		};
 		AFDBD8D11DBEEFD6009B5FA8 = {
 			isa = PBXGroup;
 			children = (
@@ -80,6 +111,8 @@
 				AFDBD8DE1DBEEFD7009B5FA8 /* Tally.h */,
 				AFDBD8F71DBEEFFE009B5FA8 /* Tally.swift */,
 				AFDBD8F91DBEF0D2009B5FA8 /* Walker.swift */,
+				40A15FC31DDBA5FB00E2CED0 /* TallyStore */,
+				4019EDA61DDB8FFB00B4114A /* CoreDataStore */,
 				AFDBD8DF1DBEEFD7009B5FA8 /* Info.plist */,
 			);
 			path = Tally;
@@ -89,6 +122,7 @@
 			isa = PBXGroup;
 			children = (
 				AFDBD8E91DBEEFD7009B5FA8 /* TallyTests.swift */,
+				40FA5E981DDBBBC6009FC865 /* TallyTestsCoreDataStore.swift */,
 				AFAB26E51DC01C4600176ACE /* new-yorker-captions.txt */,
 				AFDBD8EB1DBEEFD7009B5FA8 /* Info.plist */,
 			);
@@ -152,7 +186,7 @@
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 0800;
-				LastUpgradeCheck = 0800;
+				LastUpgradeCheck = 0810;
 				ORGANIZATIONNAME = Mat;
 				TargetAttributes = {
 					AFDBD8DA1DBEEFD7009B5FA8 = {
@@ -207,8 +241,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4019ED921DDB87FF00B4114A /* TallyStoreModel.xcdatamodeld in Sources */,
+				AF0699351DE7FE2A00E5C1AB /* CoreData+Extensions.swift in Sources */,
 				AFDBD8F81DBEEFFE009B5FA8 /* Tally.swift in Sources */,
 				AFDBD8FA1DBEF0D2009B5FA8 /* Walker.swift in Sources */,
+				4019ED8E1DDB67A800B4114A /* CoreDataTallyStore.swift in Sources */,
+				401C98671DDA6958006AB605 /* TallyStoreType.swift in Sources */,
+				40A15FC11DDBA5CA00E2CED0 /* MemoryTallyStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -216,6 +255,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				40FA5E991DDBBBC6009FC865 /* TallyTestsCoreDataStore.swift in Sources */,
 				AFDBD8EA1DBEEFD7009B5FA8 /* TallyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -249,6 +289,7 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
@@ -302,6 +343,7 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
@@ -424,6 +466,19 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCVersionGroup section */
+		4019ED901DDB87FF00B4114A /* TallyStoreModel.xcdatamodeld */ = {
+			isa = XCVersionGroup;
+			children = (
+				4019ED911DDB87FF00B4114A /* TallyStoreModel.xcdatamodel */,
+			);
+			currentVersion = 4019ED911DDB87FF00B4114A /* TallyStoreModel.xcdatamodel */;
+			path = TallyStoreModel.xcdatamodeld;
+			sourceTree = "<group>";
+			versionGroupType = wrapper.xcdatamodel;
+		};
+/* End XCVersionGroup section */
 	};
 	rootObject = AFDBD8D21DBEEFD7009B5FA8 /* Project object */;
 }

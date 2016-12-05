@@ -50,10 +50,10 @@ public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
     private let model: Tally<Item>
     private let walk: WalkType<Item>
     
-    internal typealias ItemProbability = (probability: Double, item: Node<Item>)
+    typealias ElementProbability = (probability: Double, element: NgramElement<Item>)
     
-    internal var newSequence = true
-    internal var lastSteps: [Item] = []
+    private var newSequence = true
+    private var lastSteps: [Item] = []
     
     /// Initializes and returns a new walker object.
     ///
@@ -112,7 +112,7 @@ public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
     mutating public func nextStep() -> Item? {
         
         // empty model
-        if model.startingItems().isEmpty {
+        if model.startingElements().isEmpty {
             print("Walker.next() Warning: attempting to generate an item from empty model")
             return nil
         }
@@ -122,7 +122,7 @@ public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
             
             newSequence = false
             lastSteps.removeAll()
-            let step = randomWalk(from: model.startingItems())
+            let step = randomWalk(from: model.startingElements())
             if let item = step.item {
                 lastSteps = [item]
             }
@@ -136,7 +136,7 @@ public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
             
             // continuing a discrete sequence (okay to return nil)
             if model.sequence.isDiscrete {
-                let nextSteps = model.itemProbabilities(after: lastSteps)
+                let nextSteps = model.elementProbabilities(following: lastSteps)
                 let step = randomWalk(from: nextSteps)
                 if let item = step.item {
                     lastSteps.append(item)
@@ -153,12 +153,12 @@ public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
                 while !foundStep {
                     
                     if lastSteps.isEmpty {
-                        let step = randomWalk(from: model.startingItems())
+                        let step = randomWalk(from: model.startingElements())
                         item = step.item
                         foundStep = true
                     }
                     else {
-                        let nextSteps = model.itemProbabilities(after: lastSteps)
+                        let nextSteps = model.elementProbabilities(following: lastSteps)
                         let step = randomWalk(from: nextSteps)
                         
                         if let _ = step.item {
@@ -167,7 +167,7 @@ public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
                         }
                         else if step.isObservableBoundary {
                             
-                            var nextSteps = model.distributions(excluding: nextSteps.map({ $0.item }))
+                            var nextSteps = model.distributions(excluding: nextSteps.map({ $0.element }))
                             if nextSteps.isEmpty {
                                 nextSteps = model.distributions()
                             }
@@ -191,23 +191,23 @@ public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
         return nil
     }
     
-    internal mutating func randomWalk(from possibleSteps: [ItemProbability]) -> Node<Item> {
+    private mutating func randomWalk(from possibleSteps: [ElementProbability]) -> NgramElement<Item> {
         
         if possibleSteps.isEmpty {
             NSException(name: NSExceptionName.invalidArgumentException, reason: "Walker.randomWalk can not choose from zero possibilities", userInfo: nil).raise()
         }
-        if possibleSteps.count == 1 { return possibleSteps[0].item }
+        if possibleSteps.count == 1 { return possibleSteps[0].element }
         
         var base = 1.0
         
-        typealias StepLimit = (item: Node<Item>, limit: Double)
+        typealias StepLimit = (element: NgramElement<Item>, limit: Double)
         
         // translate probabilities into lower limits
         // e.g. (0.25, 0.5, 0.25) -> (0.75, 0.25, 0.0)
         let lowerLimits: [StepLimit] = possibleSteps.map { possibleStep in
             let limit = base - possibleStep.probability
             base = limit
-            return (item: possibleStep.item, limit: limit)
+            return (element: possibleStep.element, limit: limit)
         }
         
         // returns a double 0.0..<1.0
@@ -218,6 +218,6 @@ public struct Walker<Item: Hashable> : Sequence, IteratorProtocol {
             return lowerLimit < randomLimit
         }
         
-        return step!.item
+        return step!.element
     }
 }

@@ -1,3 +1,5 @@
+<img src="assets/tally-walker-logo.png" alt="Tally & Walker logo" width="59">
+
 # Tally & Walker
 
 Tally & Walker is a lightweight Swift library for building probability models of n-grams.
@@ -17,19 +19,19 @@ weatherModel.observe(sequence: ["🌧","🌧","🌧","🌧", "☀️","☀️","
 // Check the overall distributions of items observed
 weatherModel.distributions()
 // Returns:
-// [(probability: 0.5, item: "🌧"),
-//  (probability: 0.5, item: "☀️")]
+// [(probability: 0.5, element: "🌧"),
+//  (probability: 0.5, element: "☀️")]
 
 // Check to see what items are expected to follow a specific item  
 weatherModel.itemProbabilities(after: "☀️")
 // Returns:
-// [(probability: 0.75, item: "☀️"),
-//  (probability: 0.25, item: "🌧")]
+// [(probability: 0.75, element: "☀️"),
+//  (probability: 0.25, element: "🌧")]
 
 weatherModel.itemProbabilities(after: "🌧")
 // Returns:
-// [(probability: 0.75, item: "🌧"),
-//  (probability: 0.25, item: .unseenItems)]
+// [(probability: 0.75, element: "🌧"),
+//  (probability: 0.25, element: .unseenItems)]
 //
 // `.unseenItems` is a marker to say that the sequence continues but, based
 // on the sequences we have observed, we don't know what items come next
@@ -126,10 +128,10 @@ var genes = Tally<Character>(ngram: .trigram)
 /* train the model */
 
 // find probabilities of items that follow the item 'C'
-genes.itemProbabilities(after: "C")
+genes.elementProbabilities(after: "C")
 
 // Find probabilities of items that follow the sequence 'C-T'  
-genes.itemProbabilities(after: ["C", "T"])
+genes.elementProbabilities(following: ["C", "T"])
 
 // Because this model uses a 3-gram, it's not possible to find probabilities of
 // items that follow a sequence longer than two items, instead of returning no
@@ -217,6 +219,69 @@ let tenItems = walker.fill(request: 10)
 
 ```
 
+## Saving Models
+
+By default, models are in-memory only, and will not persist.
+
+Setting the `store` property of a Tally model with a `TallyStoreType` that works with the same type you can configure the model to use a different store, including stores that persist the model.
+
+The easiest way to create a TallyStoreType is to create a store that's based on a tree structure, and to implement the `TallyStoreTreeNode` protocol for the nodes of the tree. See the implementation of [MemoryTallyStore](Tally/Tally/MemoryTallyStore.swift) for an example of this approach.
+
+### CoreDataTallyStore
+
+Tally & Walker ships with `CoreDataTallyStore` which can be used to persist the Tally model through an sqlite store.
+
+```Swift
+
+// Create the Tally store.
+// With this convenience initializer a sqlite store called
+// 'WordStore.sqlite' will be created in the application
+// default directory.
+let wordStore = CoreDataTallyStore<String>(named: "WordStore")
+
+// Create a Tally model for Strings, and link model to the store
+var model = Tally<String>()
+model.store = AnyTallyStore(wordStore)
+
+// Observations on a Core Data backed store are performed on a background
+// thread, an optional closure an be used to trigger behavior once the
+// observation has completed
+model.observe(sequence: ["hello", "world"]) {
+  print("Observation finished!")
+}
+
+// Manually call `save()` at an appropriate time to propagate changes
+// to the Core Data store.
+wordStore.save()
+
+```
+
+Before using `CoreDataTallyStore`, you'll also need to extend the type so that it implements the `LosslessConvertible` protocol, which in turn describes how your type should be represented in a Core Data store.
+
+```Swift
+
+extension String: LosslessConvertible {
+
+    // return the value that will be used by the Core Data store
+    public var losslessRepresentation: CoreDataTallyStoreLosslessRepresentation {
+        return .string(self)
+    }
+
+    // initialize the type from the value in the Core Data store
+    public init?(_ representation: CoreDataTallyStoreLosslessRepresentation) {
+        if case let .string(stringValue) = representation {
+            self = stringValue
+        }
+        else { return nil }
+    }
+}
+
+```
+
+`LosslessConvertible` includes options for types to be converted to one of the following types: `String`, `Bool`, `Double`, `Int16`, and `NSDictionary`.
+
+Converting your type to a `NSDictionary` means that even complex types can be safely represented in the Core Data store, however use of one of the scalar type if preferred because this allows optimizations that both increases speed, and decreases the size of the generated store.
+
 ## Roadmap
 
 - [x] Build models from observed training examples
@@ -226,8 +291,7 @@ let tenItems = walker.fill(request: 10)
 - [x] List probability for next item in sequence
 - [ ] List probability for next sequence of items in sequence
 - [ ] List most frequent n-grams
-- [ ] Export/import model (maybe json, plist)
-- [ ] Persist model (maybe NSCoding, Core Data)
+- [x] Persist model using Core Data
 - [ ] Add pseudocounts to smooth infrequent or unseen n-grams
 - [ ] Normalize items as they are observed while keeping original value and count
 - [ ] Tag observed sequences with metadata/category to provide context
@@ -239,8 +303,9 @@ let tenItems = walker.fill(request: 10)
 
 ## Requirements
 
-- Xcode 8.0+
-- Swift 3.0+
+- Xcode 8.0
+- Swift 3.0
+- Target >= iOS 10.0
 
 ## Author
 
