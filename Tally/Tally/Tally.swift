@@ -162,7 +162,7 @@ public struct Tally<Item: Hashable> {
     /// model.endSequence()
     /// ~~~~
     public mutating func observe(next item: Item, completed closure: (() -> Void)? = nil) {
-        observe(next: NgramElement.item(item), completed: closure)
+        observe(next: NgramElement.item(normalized(item)), completed: closure)
     }
     
     /// Observes a sequence of items.
@@ -189,7 +189,7 @@ public struct Tally<Item: Hashable> {
             
             items.forEach{ item in
                 closureGroup.enter()
-                observe(next: item) {
+                observe(next: normalized(item)) {
                     closureGroup.leave()
                 }
             }
@@ -207,7 +207,7 @@ public struct Tally<Item: Hashable> {
             startSequence()
             
             items.forEach{ item in
-                observe(next: item)
+                observe(next: normalized(item))
             }
             endSequence()
         }
@@ -270,7 +270,7 @@ public struct Tally<Item: Hashable> {
     ///
     /// - returns: Probabilities of an element occuring after the given item. This may return an empty array.
     public func elementProbabilities(after item: Item) -> ElementProbabilities {
-        return self.elementProbabilities(following: [item])
+        return self.elementProbabilities(following: [normalized(item)])
     }
     
     /// Get the probabilities of elements that have observed to follow a sequence of items.
@@ -281,7 +281,7 @@ public struct Tally<Item: Hashable> {
     ///
     /// returns: Probabilities of an element occuring after the given item. This may return an empty array.
     public func elementProbabilities(following sequence: [Item]) -> ElementProbabilities {
-        let elements = sequence.map({ item in return NgramElement.item(item) })
+        let elements = sequence.map({ item in return NgramElement.item(normalized(item)) })
         return self.elementProbabilities(following: elements)
     }
     
@@ -310,6 +310,19 @@ public struct Tally<Item: Hashable> {
         case .discreteSequence: return .sequenceEnd
         }
     }
+    
+    private func normalized(_ item: Item) -> Item {
+        
+        if let normalizable = item as? TallyNormalizer, let normalizedItem = normalizable.normalized() as? Item {
+            return normalizedItem
+        }
+        return item
+    }
+}
+
+public protocol TallyNormalizer {
+    
+    func normalized() -> Self
 }
 
 // MARK: -

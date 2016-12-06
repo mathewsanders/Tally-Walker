@@ -48,6 +48,23 @@ class TallyTests: XCTestCase {
         XCTAssertTrue(continuousModel.sequence.isContinuous, "Default Tally should be continuous")
     }
     
+    func testNormalization() {
+        
+        let item = "  MiXeD cAsE "
+        let target = "mixed case"
+        
+        let normalizedItem = item.normalized()
+        
+        XCTAssertTrue(normalizedItem == target, "Unexpected normalization of item")
+        
+        var model = Tally<String>()
+        
+        model.observe(sequence: ["Test", "TEST", "test", "TeSt", "    test    "])
+        
+        print(model.distributions())
+        
+    }
+    
     func testDistributions() {
         
         // check there are two items, and both have probability of 0.5
@@ -134,4 +151,12 @@ class TallyTests: XCTestCase {
         return text.lowercased().trimmingCharacters(in: CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters))
     }
     
+}
+
+extension String: TallyNormalizer {
+    
+    public func normalized() -> String {
+        return self.lowercased().trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+    }
+
 }
