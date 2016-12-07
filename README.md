@@ -1,4 +1,4 @@
-<img src="Assets/tally-walker-logo.png" alt="Tally & Walker logo" width="60">
+<img src="assets/tally-walker-logo.png" alt="Tally & Walker logo" width="60">
 
 # Tally & Walker
 
