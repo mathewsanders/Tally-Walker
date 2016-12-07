@@ -85,7 +85,7 @@ for _ in 0..<4 {
 - [ ] List most frequent n-grams
 - [x] Persist model using Core Data
 - [ ] Add pseudocounts to smooth infrequent or unseen n-grams
-- [ ] Normalize items as they are observed while keeping original value and count
+- [x] Normalize items as they are observed
 - [ ] Tag observed sequences with metadata/category to provide context
 - [ ] Approximate matching to compare item sequences
 - [ ] Include common sample training data
