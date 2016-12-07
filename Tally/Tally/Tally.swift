@@ -111,6 +111,14 @@ public struct Tally<Item: Hashable> {
         return store ?? _memoryStore // use external store if it exists, fall back in in-memory store
     }
     
+    /// A closure used to transform any item before it is observed by the model, or when querying the model
+    /// about an item.
+    ///
+    /// If an Item also adopts the `TallyNormalizer` protocol, and this closure is also defined, then the
+    /// value returned by this closure is used instead of the result returned by the `TallyNormalizer` 
+    /// `normalized()` method.
+    public var normalizer: ( (Item) -> Item )? = nil
+    
     private var recentlyObserved: [NgramElement<Item>]
     
     /// Initializes and returns a new Tally object.
@@ -162,7 +170,7 @@ public struct Tally<Item: Hashable> {
     /// model.endSequence()
     /// ~~~~
     public mutating func observe(next item: Item, completed closure: (() -> Void)? = nil) {
-        observe(next: NgramElement.item(item), completed: closure)
+        observe(next: NgramElement.item(normalize(item)), completed: closure)
     }
     
     /// Observes a sequence of items.
@@ -189,7 +197,7 @@ public struct Tally<Item: Hashable> {
             
             items.forEach{ item in
                 closureGroup.enter()
-                observe(next: item) {
+                observe(next: normalize(item)) {
                     closureGroup.leave()
                 }
             }
@@ -207,7 +215,7 @@ public struct Tally<Item: Hashable> {
             startSequence()
             
             items.forEach{ item in
-                observe(next: item)
+                observe(next: normalize(item))
             }
             endSequence()
         }
@@ -270,7 +278,7 @@ public struct Tally<Item: Hashable> {
     ///
     /// - returns: Probabilities of an element occuring after the given item. This may return an empty array.
     public func elementProbabilities(after item: Item) -> ElementProbabilities {
-        return self.elementProbabilities(following: [item])
+        return self.elementProbabilities(following: [normalize(item)])
     }
     
     /// Get the probabilities of elements that have observed to follow a sequence of items.
@@ -281,7 +289,7 @@ public struct Tally<Item: Hashable> {
     ///
     /// returns: Probabilities of an element occuring after the given item. This may return an empty array.
     public func elementProbabilities(following sequence: [Item]) -> ElementProbabilities {
-        let elements = sequence.map({ item in return NgramElement.item(item) })
+        let elements = sequence.map({ item in return NgramElement.item(normalize(item)) })
         return self.elementProbabilities(following: elements)
     }
     
@@ -310,6 +318,31 @@ public struct Tally<Item: Hashable> {
         case .discreteSequence: return .sequenceEnd
         }
     }
+    
+    private func normalize(_ item: Item) -> Item {
+        
+        if let normalizer = normalizer {
+            return normalizer(item)
+        }
+        
+        if let normalizable = item as? TallyNormalizer, let normalizedItem = normalizable.normalized() as? Item {
+            return normalizedItem
+        }
+        return item
+    }
+}
+
+// MARK: -
+
+/// Types that implement this protocol will use the value returned from the `normalized()`
+/// method when updating or reviewing a Tally model.
+public protocol TallyNormalizer {
+    
+    /// The alternate value to use when updating or reviewing a Tally model.
+    ///
+    /// If the Tally model's `normalized` closure is defined, then the resulf of 
+    /// that closure will be used instead of the result of this method.
+    func normalized() -> Self
 }
 
 // MARK: -
@@ -387,6 +420,8 @@ public enum NgramElement<Item: Hashable>: Hashable {
         }
     }
 }
+
+// MARK: -
 
 extension Array where Iterator.Element: Hashable {
     mutating func clamp(to size: Int) {

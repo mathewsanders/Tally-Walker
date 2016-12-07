@@ -48,6 +48,22 @@ class TallyTests: XCTestCase {
         XCTAssertTrue(continuousModel.sequence.isContinuous, "Default Tally should be continuous")
     }
     
+    func testNormalization() {
+        
+        var model = Tally<String>()
+        
+        model.normalizer = { item in
+            return item.uppercased().trimmingCharacters(in: CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters))
+        }
+        
+        model.observe(sequence: ["Test", "TEST", "test", "TeSt", "   'test'    "])
+        let normalizedDistributions = model.distributions()
+        
+        XCTAssertTrue(normalizedDistributions.count == 1, "Unexpected number of distributions")
+        XCTAssertTrue(normalizedDistributions[0].element.item == "TEST", "Unexpected item value")
+        
+    }
+    
     func testDistributions() {
         
         // check there are two items, and both have probability of 0.5
@@ -93,14 +109,15 @@ class TallyTests: XCTestCase {
         
         for caption in captions! {
             
-            let words = caption.components(separatedBy: CharacterSet.whitespaces).flatMap({ word in normalize(text: word) })
-            startingWords[words[0]] = true
+            let words = caption.components(separatedBy: CharacterSet.whitespaces)
+            
+            startingWords[words[0].normalized()] = true
             
             model.startSequence()
             
             for word in words {
                 model.observe(next: word)
-                allWords[word] = true
+                allWords[word.normalized()] = true
             }
             
             model.endSequence()
@@ -129,9 +146,10 @@ class TallyTests: XCTestCase {
             return content.components(separatedBy: CharacterSet.newlines)
         } catch { return nil }
     }
-    
-    func normalize(text: String) -> String {
-        return text.lowercased().trimmingCharacters(in: CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters))
+}
+
+extension String: TallyNormalizer {
+    public func normalized() -> String {
+        return self.lowercased().trimmingCharacters(in: CharacterSet.whitespaces.union(CharacterSet.punctuationCharacters))
     }
-    
 }
