@@ -71,7 +71,7 @@ for _ in 0..<4 {
 - [Tally options](Documentation/1. Tally.md)
 - [Saving models](Documentation/2. Saving models.md)
 - [Normalizing items](Documentation/3. Normalizing items.md)
-- [Using Tally with custom objects](Documentation/4. Using Tally with complex objects.md)
+- [Tally and complex types](Documentation/4. Tally and complex types.md)
 - [Walker options](Documentation/5. Walker.md)
 
 ## Examples
